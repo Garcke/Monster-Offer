@@ -2,7 +2,7 @@
 一个基于qwen-max-latest(LLM) + paraformer-realtime-v2(实时语音模型)的一个实时语音AI面试助手<br>
 An interview assistant based on qwen-max-latest(LLM)+ paraformer-Realtime-V2 (real-time voice model)
 
-# 运行教程（Run the tutorial）
+# (快速开始)Quick start
 - 在`config.py`中配置API-KEY,获取网址：https://bailian.console.aliyun.com/?apiKey=1#/api-key
 - 安装`requirements.txt`的相关库
 ``` 
