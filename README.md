@@ -53,7 +53,7 @@ python -m http.server 9000
 ```
 http://localhost:9000/static/
 ```
-
+<img width="1733" height="901" alt="example" src="https://github.com/user-attachments/assets/98238e50-c1a7-4116-a810-7bf0e44a6ea0" />
 ---
 
 ## 项目结构（Project Structure）
