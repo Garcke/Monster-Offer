@@ -1,4 +1,16 @@
-# Monster Offer
+<p align="center">
+  <img src="static/favicon.png" alt="Monster Offer Logo" width="180">
+</p>
+
+<h1 align="center">Monster Offer</h1>
+
+<p align="center">
+  本地实时语音转写与 AI 面试辅助回答
+</p>
+
+<p align="center">
+  <strong>让每一次面试表达更清晰、更从容。</strong>
+</p>
 
 基于本地 Streaming Paraformer 中英双语模型和 OpenAI 兼容文本模型的实时面试助手。
 
