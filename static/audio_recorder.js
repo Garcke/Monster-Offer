@@ -3,86 +3,107 @@ class PCMAudioRecorder {
         this.audioContext = null;
         this.stream = null;
         this.currentSource = null;
+        this.processorNode = null;
+        this.silentGain = null;
         this.audioCallback = null;
+        this.stopResolver = null;
+        this.stopTimer = null;
+        this.stopPromise = null;
     }
 
     async connect(audioCallback) {
         this.audioCallback = audioCallback;
-        if (!this.audioContext) {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-        }
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+            sampleRate: 16000,
+        });
+        await this.audioContext.resume();
 
-        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                channelCount: 1,
+                noiseSuppression: true,
+                autoGainControl: true,
+            },
+        });
         this.currentSource = this.audioContext.createMediaStreamSource(this.stream);
 
-        // 加载 AudioWorklet
         try {
             await this.audioContext.audioWorklet.addModule('recorder_worklet.js');
-        } catch (e) {
-            console.error('Error loading AudioWorklet:', e);
-            return;
+        } catch (error) {
+            await this._cleanup();
+            throw new Error(`AudioWorklet 加载失败: ${error.message || error}`);
         }
 
-        // 创建 AudioWorkletNode
         this.processorNode = new AudioWorkletNode(this.audioContext, 'pcm-processor');
-
-        // 监听从 AudioWorkletProcessor 发来的消息
         this.processorNode.port.onmessage = (event) => {
             if (event.data instanceof Int16Array) {
-                if (this.audioCallback) {
-                    this.audioCallback(event.data);
-                }
-            } else {
-                console.log('Received message from AudioWorkletProcessor:', event.data);
+                this.audioCallback?.(event.data, this.audioContext.sampleRate);
+                return;
+            }
 
-                if (event.data == 'stopped') {
-                    console.log('Recorder stopped.');
-                    // this.processorNode.disconnect();
-                    // this.processorNode.port.close();
-                    // this.processorNode = null;
-                }
+            if (event.data?.event === 'stopped') {
+                this._resolveStop();
             }
         };
 
-        // 连接节点
-
+        // A zero-gain output keeps the worklet active without playing microphone
+        // audio back through the speakers.
+        this.silentGain = this.audioContext.createGain();
+        this.silentGain.gain.value = 0;
         this.currentSource.connect(this.processorNode);
-        this.processorNode.connect(this.audioContext.destination);
-        console.log('Recorder connected.');
+        this.processorNode.connect(this.silentGain);
+        this.silentGain.connect(this.audioContext.destination);
     }
 
-    stop() {
-        // 断开 AudioWorkletNode
+    async stop() {
+        if (this.stopPromise) return this.stopPromise;
+        this.stopPromise = this._stopAndCleanup();
+        try {
+            await this.stopPromise;
+        } finally {
+            this.stopPromise = null;
+        }
+    }
+
+    async _stopAndCleanup() {
         if (this.processorNode) {
-            this.processorNode.port.postMessage('stop');
+            await new Promise((resolve) => {
+                this.stopResolver = resolve;
+                this.stopTimer = window.setTimeout(() => this._resolveStop(), 1000);
+                this.processorNode.port.postMessage({event: 'stop'});
+            });
         }
+        await this._cleanup();
+    }
 
-        // 停止音频流
-        if (this.stream) {
-            const tracks = this.stream.getTracks();
-            tracks.forEach(track => track.stop());
+    _resolveStop() {
+        if (this.stopTimer) {
+            window.clearTimeout(this.stopTimer);
+            this.stopTimer = null;
         }
+        const resolve = this.stopResolver;
+        this.stopResolver = null;
+        resolve?.();
+    }
 
-        // 断开音频链接
-        if (this.currentSource) {
-            this.currentSource.disconnect();
-            this.currentSource = null;
-        }
+    async _cleanup() {
+        this.stream?.getTracks().forEach((track) => track.stop());
+        this.stream = null;
 
-        // 关闭音频上下文
-        if (this.audioContext) {
-            this.audioContext.close();
-            this.audioContext = null;
-        }
+        this.currentSource?.disconnect();
+        this.processorNode?.disconnect();
+        this.silentGain?.disconnect();
+        this.processorNode?.port.close();
 
-        // 重置音频回调
+        this.currentSource = null;
+        this.processorNode = null;
+        this.silentGain = null;
         this.audioCallback = null;
-        if (this.processorNode) {
-            this.processorNode.port.postMessage('stop');
-            this.processorNode.disconnect();
-            this.processorNode.port.close();
-            this.processorNode = null;
+
+        if (this.audioContext && this.audioContext.state !== 'closed') {
+            await this.audioContext.close();
         }
+        this.audioContext = null;
     }
 }
 

@@ -1,0 +1,11 @@
+.env
+.venv/
+.uv-cache/
+__pycache__/
+*.py[cod]
+
+# Runtime audio and downloaded ASR models may contain private or large data.
+cache/*.pcm
+models/
+*.tar.bz2
+*.part

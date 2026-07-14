@@ -1,121 +1,187 @@
+"""Single-process web, LLM API, and local streaming ASR server."""
+
+from __future__ import annotations
+
 import asyncio
+import importlib
 import json
+import logging
+import os
+from contextlib import asynccontextmanager, suppress
+from pathlib import Path
+from typing import Any, Callable
 
-import dashscope
-import websockets
-from dashscope.audio.asr import *
-
-from config import config
-
-dashscope.api_key = config["DASHSCOPE_API_KEY"]
-
-service = VocabularyService()
-list_voca_length = len(service.list_vocabularies())
-vocabulary_id = service.list_vocabularies()[list_voca_length - 1]['vocabulary_id']
+import uvicorn
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 
 
-# Real-time speech recognition callback
-class MyRecognitionCallback(RecognitionCallback):
-    def __init__(self, tag, websocket, loop) -> None:
-        super().__init__()
-        self.tag = tag
-        self.text = ''
-        self.websocket = websocket
-        self.loop = loop
-        self.send_events = []
+LOGGER = logging.getLogger("monster-offer")
+PROJECT_ROOT = Path(__file__).resolve().parent
+STATIC_DIR = PROJECT_ROOT / "static"
 
-    def on_open(self) -> None:
-        print(f'[{self.tag}] Recognition started')  # recognition open
 
-    def on_complete(self) -> None:
-        print(f'[{self.tag}] Results ==> ', self.text)
-        print(f'[{self.tag}] Recognition completed')  # recognition complete
+def load_local_asr_engine() -> Any:
+    """Import the native ASR dependency only when the unified app starts."""
+    from local_asr import LocalASREngine
 
-    def on_error(self, result: RecognitionResult) -> None:
-        print(f'[{self.tag}] RecognitionCallback task_id: ', result.request_id)
-        print(f'[{self.tag}] RecognitionCallback error: ', result.message)
-        exit(0)
+    return LocalASREngine()
 
-    async def send_asr_result(self, message: str,
-                              event: asyncio.Event) -> None:
-        await self.websocket.send(message)
-        event.set()
 
-    def on_event(self, result: RecognitionResult) -> None:
-        sentence = result.get_sentence()
-        if 'text' in sentence:
-            is_end = False
-            if RecognitionResult.is_sentence_end(sentence):
-                is_end = True
-            print(sentence['text'])
-            msg = {'text': sentence['text'], 'is_end': is_end}
-            event = asyncio.Event()
-            self.send_events.append(event)
-            self.loop.call_soon_threadsafe(
-                asyncio.create_task,
-                self.send_asr_result(json.dumps(msg), event))
+class LazyLLMApp:
+    """Delay importing the OpenAI SDK until an /api request is received."""
 
-    def on_close(self) -> None:
-        print(f'[{self.tag}] RecognitionCallback closed')
+    def __init__(self) -> None:
+        self._app = None
+        self._lock = asyncio.Lock()
+
+    async def __call__(self, scope, receive, send) -> None:
+        if self._app is None:
+            async with self._lock:
+                if self._app is None:
+                    self._app = importlib.import_module("llm_api").app
+        await self._app(scope, receive, send)
 
 
 class AudioServer:
-    def __init__(self):
-        pass
+    """Adapts LocalASREngine sessions to FastAPI WebSocket connections."""
 
-    async def handle_client(self, websocket):
-        loop = asyncio.get_event_loop()
-        callback = MyRecognitionCallback('process0', websocket, loop)
-        recognition = Recognition(
-            model='paraformer-realtime-v2',
-            vocabulary_id=vocabulary_id,
-            format='pcm',
-            language_hints=['zh', 'en'],
-            sample_rate=16000,  # supported 8000、16000
-            semantic_punctuation_enabled=False,
-            callback=callback)
+    def __init__(self, engine: Any) -> None:
+        self.engine = engine
+        # Native inference is shared, so serialize decoding across connections.
+        self.decode_lock = asyncio.Lock()
 
-        recognition.start()
+    async def handle_client(self, websocket: WebSocket) -> None:
+        await websocket.accept()
+        session = self.engine.create_session()
+        stopped_by_client = False
+        LOGGER.info("ASR client connected: %s", websocket.client)
 
-        outfile = open('cache/audio.pcm', 'wb')
         try:
-            print('Client connected')
             while True:
-                data = await websocket.recv()
-                if isinstance(data, bytes):
-                    # print("Received cache:", len(cache))
-                    recognition.send_audio_frame(data)
-                    outfile.write(data)
-                if isinstance(data, str):
-                    print('Received message:', data)
-                    if data == 'stop':
-                        break
-        except websockets.exceptions.ConnectionClosed:
-            print('Client disconnected')
-        except Exception as e:
-            print(f'Error: {e}')
-        recognition.stop()
+                data = await websocket.receive()
+                message_type = data.get("type")
+                if message_type == "websocket.disconnect":
+                    break
 
-        # wait until all asr results are sent
-        for event in callback.send_events:
-            await event.wait()
+                audio = data.get("bytes")
+                if audio is not None:
+                    async with self.decode_lock:
+                        messages = await asyncio.to_thread(session.accept_pcm, audio)
+                    await self._send_messages(websocket, messages)
+                    continue
 
-        await websocket.send('asr stopped')
-        print('asr stopped')
+                text = data.get("text")
+                if text == "stop":
+                    stopped_by_client = True
+                    break
+                if text is not None:
+                    self._handle_control_message(session, text)
+        except WebSocketDisconnect:
+            LOGGER.info("ASR client disconnected: %s", websocket.client)
+        except (TypeError, ValueError) as exc:
+            LOGGER.warning("Invalid ASR client data: %s", exc)
+            await self._send_error(websocket, str(exc))
+        except Exception:
+            LOGGER.exception("ASR connection failed")
+            await self._send_error(websocket, "Local speech recognition failed")
 
-    def close(self):
-        print('server is closed')
+        if not stopped_by_client:
+            return
 
-
-async def main():
-    audio_server = AudioServer()
-    async with websockets.serve(audio_server.handle_client, 'localhost', 6220):
-        print('WebSocket server started on ws://localhost:6220')
         try:
-            await asyncio.Future()  # run forever
-        finally:
-            audio_server.close()
+            async with self.decode_lock:
+                final_messages = await asyncio.to_thread(session.finish)
+            await self._send_messages(websocket, final_messages)
+            await websocket.send_text("asr stopped")
+            LOGGER.info("ASR recognition stopped: %s", websocket.client)
+        except WebSocketDisconnect:
+            LOGGER.info("ASR client disconnected while flushing")
+        except Exception:
+            LOGGER.exception("Failed to flush final ASR result")
+            await self._send_error(websocket, "Failed to finish speech recognition")
+
+    @staticmethod
+    def _handle_control_message(session: Any, message: str) -> None:
+        try:
+            payload = json.loads(message)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Unknown control message: {message}") from exc
+
+        if payload.get("type") != "audio_config":
+            raise ValueError("Unknown control message type")
+        session.set_input_sample_rate(int(payload.get("sample_rate", 16000)))
+
+    @staticmethod
+    async def _send_messages(websocket: WebSocket, messages: list[Any]) -> None:
+        for message in messages:
+            await websocket.send_json(
+                {"text": message.text, "is_end": message.is_end},
+                mode="text",
+            )
+
+    @staticmethod
+    async def _send_error(websocket: WebSocket, message: str) -> None:
+        with suppress(RuntimeError, WebSocketDisconnect):
+            await websocket.send_json({"event": "error", "message": message})
 
 
-if __name__ == '__main__':
-    asyncio.run(main())
+def create_app(
+    engine_factory: Callable[[], Any] = load_local_asr_engine,
+    llm_app: Any | None = None,
+) -> FastAPI:
+    """Build the unified application; dependencies are injectable for tests."""
+
+    @asynccontextmanager
+    async def lifespan(application: FastAPI):
+        LOGGER.info("Loading local Paraformer model...")
+        engine = await asyncio.to_thread(engine_factory)
+        application.state.audio_server = AudioServer(engine)
+        model_dir = getattr(engine, "model_dir", None)
+        if model_dir:
+            LOGGER.info("Local ASR model loaded from %s", model_dir)
+        else:
+            LOGGER.info("Local ASR engine loaded")
+        yield
+
+    application = FastAPI(
+        title="Monster Offer",
+        lifespan=lifespan,
+    )
+
+    @application.websocket("/ws/asr")
+    async def asr_websocket(websocket: WebSocket) -> None:
+        await application.state.audio_server.handle_client(websocket)
+
+    # API and WebSocket routes must be registered before the catch-all static mount.
+    application.mount("/api", llm_app or LazyLLMApp(), name="api")
+    application.mount(
+        "/",
+        StaticFiles(directory=STATIC_DIR, html=True),
+        name="static",
+    )
+    return application
+
+
+app = create_app()
+
+
+def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    host = os.getenv("APP_HOST", "127.0.0.1")
+    port = int(os.getenv("APP_PORT", "9000"))
+    LOGGER.info("Starting Monster Offer at http://%s:%s", host, port)
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        LOGGER.info("Server stopped")
+    except (FileNotFoundError, ValueError, ModuleNotFoundError) as exc:
+        LOGGER.error("%s", exc)
+        raise SystemExit(1) from exc

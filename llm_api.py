@@ -1,6 +1,7 @@
 import asyncio
 import json
 import threading
+from pathlib import Path
 from typing import Optional, Dict, Any
 
 from fastapi import FastAPI, HTTPException
@@ -24,6 +25,7 @@ from config import DASHSCOPE_API_KEY, check_llm_connection, get_available_models
 
 DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 DEFAULT_MODEL_NAME: str = "qwen-max-latest"
+PROMPT_FILE = Path(__file__).resolve().parent / "cache" / "prompt.txt"
 DEFAULT_REQUEST_PARAMS: Dict[str, Any] = {
     "temperature": 0.3,
     "top_p": 0.5,
@@ -73,6 +75,16 @@ class ListModelsRequest(BaseModel):
     """从远程 API 拉取模型列表请求体"""
     base_url: Optional[str] = ""
     api_key: Optional[str] = ""
+
+
+@app.get("/prompt/")
+async def get_prompt():
+    """Return the local system prompt without exposing the project directory."""
+    try:
+        prompt = PROMPT_FILE.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="无法读取系统提示词") from exc
+    return {"prompt": prompt}
 
 
 def resolve_runtime_config(user_message: UserMessage) -> Dict[str, Any]:
@@ -273,4 +285,3 @@ async def list_models_from_api(req: ListModelsRequest):
 @app.get("/health/")
 async def health_check():
     return {"status": "ok"}
-

@@ -1,116 +1,134 @@
-# QW-InterviewAssistant
+# Monster Offer
 
-基于 **Qwen / 任意 OpenAI 兼容 LLM** + **Paraformer-Realtime-V2** 的实时语音 AI 面试助手。
+基于本地 Streaming Paraformer 中英双语模型和 OpenAI 兼容文本模型的实时面试助手。
 
-An interview assistant with real-time voice (DashScope ASR) and text chat (default: qwen-max-latest, configurable to other OpenAI-compatible models).
+- 实时语音识别完全在本机运行，不上传音频。
+- 浏览器持续发送 PCM 音频，本地模型返回临时结果和最终断句。
+- AI 回答默认使用 Qwen，也可在页面中配置其他 OpenAI 兼容接口。
+- 网页、LLM API 和 ASR WebSocket 已合并为一个 FastAPI 服务。
 
----
+## 环境要求
 
-## 环境要求（Requirements）
+- Python 3.10～3.12（64 位）
+- Windows、Linux 或 macOS
+- 建议至少 8 GB 内存
 
-- **Python 3.10**
+## 首次安装
 
----
+推荐使用全局 `uv` 创建项目独立环境并安装依赖：
 
-## 快速开始（Quick Start）
-
-### 1. 配置 API Key
-
-在 **`config/settings.py`** 中配置 `DASHSCOPE_API_KEY`（用于实时语音识别 + 默认文本模型）。
-
-- 获取地址：<https://bailian.console.aliyun.com/?apiKey=1#/api-key>
-
-### 2. 安装依赖
-
-```bash
-pip install -r requirements.txt
+```powershell
+uv venv --python 3.12 .venv
+uv pip install --python .venv\Scripts\python.exe -r requirements.txt
 ```
 
-### 3. 启动三个服务
+如未安装 `uv`，也可以使用 `python -m pip install -r requirements.txt`。
 
-**终端 1 - 文本对话 API（LLM，SSE 流式）**
+下载本地语音模型：
 
-```bash
-uvicorn llm_api:app --host 0.0.0.0 --port 2333
+```powershell
+python download_asr_model.py
 ```
 
-**终端 2 - 实时语音识别（WebSocket）**
+模型默认保存到：
 
-```bash
-python server.py
+```text
+models/sherpa-onnx-streaming-paraformer-bilingual-zh-en/
 ```
 
-**终端 3 - 前端静态资源**
+如需使用默认 Qwen 文本模型，复制并编辑环境变量文件：
 
-```bash
-python -m http.server 9000
+```powershell
+Copy-Item .env.example .env
 ```
 
-### 4. 访问页面
-
-浏览器打开：
-
-```
-http://localhost:9000/static/
-```
-<img width="1733" height="901" alt="example" src="https://github.com/user-attachments/assets/98238e50-c1a7-4116-a810-7bf0e44a6ea0" />
-
-
----
-## 项目结构（Project Structure）
-
-```
-realtime-chat/
-├── config/                 # 统一配置目录
-│   ├── __init__.py         # 导出 DASHSCOPE_API_KEY、check_llm_connection、get_available_models
-│   ├── settings.py         # DASHSCOPE_API_KEY（语音 + 默认 Qwen）
-│   ├── llm_checker.py      # LLM 连接测试、模型列表拉取
-│   └── SetVocabulary.py    # 热词表管理（ASR 专有名词）
-├── cache/
-│   ├── prompt.txt         # 系统提示词（可编辑）
-│   └── audio.pcm          # 录音缓存
-├── static/                 # 前端
-│   ├── index.html
-│   ├── scripts.js         # 对话逻辑、模型配置弹窗、快捷键
-│   ├── styles.css
-│   ├── audio_recorder.js  # 录音
-│   └── recorder_worklet.js
-├── llm_api.py             # 统一 LLM API（/chat/ 流式、/set_prompt/、/history/、/reset/、/models/、/test_connection/、/models/list/）
-├── server.py              # 实时语音 WebSocket 服务（DashScope ASR）
-├── requirements.txt
-└── README.md
+```dotenv
+DASHSCOPE_API_KEY=sk-xxx
 ```
 
-- **LLM**：默认使用 DashScope 的 Qwen；前端可在「模型配置」弹窗中填写模型名、API Key、Base URL，保存后对话将使用新配置（配置存于浏览器 localStorage）。
-- **流式输出**：`/chat/` 使用 SSE（`text/event-stream`），前端按 `data:` 行解析，支持事件区分与后续断线重连。
+也可以不创建 `.env`，直接在网页的“模型配置”中填写其他 OpenAI 兼容模型。
 
----
+## 启动项目
 
-## 快捷键（Shortcuts）
+现在只需要启动一个服务：
+
+```powershell
+.\.venv\Scripts\python.exe server.py
+```
+
+也可以在 Windows 中双击 `start.bat` 一键启动。脚本会优先使用项目内的 `.venv`，不存在时才回退到全局 Python。
+
+服务启动并完成本地 ASR 模型加载后，访问：
+
+```text
+http://127.0.0.1:9000/
+```
+
+统一服务提供以下入口：
+
+| 路径 | 功能 |
+|---|---|
+| `/` | 前端网页和静态资源 |
+| `/api/*` | 文本模型、提示词和配置接口 |
+| `/ws/asr` | 本地实时语音识别 WebSocket |
+
+不再需要分别启动 2333、6220 和静态文件服务器。前端会自动使用当前网页所在的域名、协议和端口，因此后续更适合封装为桌面端或移动端应用。
+
+## 启动配置
+
+可在 `.env` 或系统环境变量中调整：
+
+| 参数 | 默认值 | 说明 |
+|---|---:|---|
+| `APP_HOST` | `127.0.0.1` | 统一服务监听地址；局域网访问时可设为 `0.0.0.0` |
+| `APP_PORT` | `9000` | 统一服务端口 |
+| `LOCAL_ASR_MODEL_DIR` | 项目内默认模型目录 | 使用其他兼容 ASR 模型目录 |
+| `LOCAL_ASR_NUM_THREADS` | `2` | ONNX CPU 推理线程数 |
+| `LOCAL_ASR_RULE1_MIN_TRAILING_SILENCE` | `2.4` | 纯静音断句阈值（秒） |
+| `LOCAL_ASR_RULE2_MIN_TRAILING_SILENCE` | `0.8` | 已识别文本后的断句静音（秒） |
+| `LOCAL_ASR_RULE3_MIN_UTTERANCE_LENGTH` | `20.0` | 单句最长时长（秒） |
+
+## 数据流
+
+```text
+浏览器麦克风
+  -> AudioWorklet（PCM 音频块）
+  -> 同源 WebSocket /ws/asr
+  -> sherpa-onnx Streaming Paraformer INT8（CPU）
+  -> {"text": "...", "is_end": false/true}
+  -> 左侧问题列表
+
+用户选择问题并生成回答
+  -> 同源 HTTP /api/chat/
+  -> OpenAI 兼容文本模型
+  -> SSE 流式回答
+  -> 右侧回答区
+```
+
+## 快捷键
 
 | 按键 | 功能 |
-|------|------|
-| `A` | 开始 / 暂停录音 |
-| `C` | 清除文本 |
-| `D` | AI Chat（发送当前文本并请求 AI 回复） |
-| `Enter` | 发送当前文本 |
-| `Alt+Enter` | 文本换行 |
+|---|---|
+| `A` | 开始或停止录音 |
+| `C` | 清空问题、选择和当前页面缓存答案 |
+| `F` | 为当前选中的问题生成回答 |
+| `Ctrl + Enter` | 发送手动输入并生成回答 |
 
-可在 **`static/scripts.js`** 中修改快捷键逻辑。
+## 主要文件
 
----
+```text
+server.py                  统一 FastAPI 服务、ASR WebSocket 和静态网页入口
+llm_api.py                 文本大模型 API
+local_asr.py               本地模型加载、流式识别和断句
+download_asr_model.py      模型下载与安全解压
+static/scripts.js          同源 WebSocket、问题状态和 LLM 交互
+static/audio_recorder.js   麦克风采集和停止时尾音刷新
+static/recorder_worklet.js PCM 音频分块
+start.bat                  Windows 一键启动入口
+```
 
-## 可配置项（Configurable Options）
+## 说明
 
-- **API Key**：`config/settings.py` 中的 `DASHSCOPE_API_KEY`（语音 + 默认 Qwen）。
-- **模型配置**：页面内「模型配置」按钮 → 填写模型名、API Key、Base URL → 测试连接 / 拉取模型列表 → 保存；后续对话使用该配置。
-- **热词（ASR）**：使用 `config/SetVocabulary.py` 等管理热词表，提升语音识别专有名词准确率。参考：<https://help.aliyun.com/zh/model-studio/developer-reference/custom-hot-words>。
-- **提示词**：编辑 **`cache/prompt.txt`** 修改系统提示词。
-- **快捷键**：在 **`static/scripts.js`** 中修改。
-- **聊天记录**：可将对话保存为本地文件（如 MD）。
-
----
-
-## 参考项目（Reference）
-
-- [在网页中录音并进行语音识别](https://github.com/aliyun/alibabacloud-bailian-speech-demo/tree/master/samples/gallery/input-text-out-audio-html-ai-assistant)
+- 本地化的是实时语音识别；默认 Qwen 文本回答仍是远程服务。
+- 当前 Streaming Paraformer 模型不提供词级时间戳。
+- 本次改造只合并了服务和启动入口，尚未进行 EXE 或 APK 打包。

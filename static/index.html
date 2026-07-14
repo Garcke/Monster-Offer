@@ -4,80 +4,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>语音识别与文本输出</title>
+    <meta name="theme-color" content="#f5f7fb">
+    <title>Monster Offer</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="styles.css">
-    <!-- 引入 Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <!-- 引入 Markdown 解析库 -->
-    <script src="https://cdn.bootcdn.net/ajax/libs/marked/4.3.0/marked.min.js"></script>    <!-- 引入代码高亮库 -->
-    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.6.0/styles/dark.min.css">
+    <script src="https://cdn.bootcdn.net/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.6.0/styles/github-dark.min.css">
     <script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script>
 </head>
 
 <body>
-<!-- 主容器 -->
-<div class="container">
-    <!-- 左侧面板：录音和聊天 -->
-    <div class="left-panel">
-        <!-- 聊天框 -->
-        <div id="chat" class="chat-container"></div>
-        <textarea id="inputBox" class="text-input" placeholder="输入您的问题（Enter发送，Shift+Enter换行）"
-                  rows="2"></textarea>
-        <!-- 操作按钮 -->
-        <div class="buttons">
-            <button id="startButton" title="快捷键A">开始录音</button>
-            <button id="stopButton" disabled title="快捷键A">停止录音</button>
-            <button id="clearButton" title="快捷键C">清除文本</button>
-            <button id="saveTXTButton" title="快捷键无">保存chat历史</button>
-            <button id="modelConfigButton" title="配置大模型参数">模型配置</button>
-            <button id="outputButton"  title="快捷键F">Ai-Chat</button>
+<main class="app-shell" data-active-panel="interview">
+    <header class="app-header">
+        <div class="brand-block">
+            <img class="brand-logo" src="favicon.png" alt="">
+            <div>
+                <p class="eyebrow">INTERVIEW COPILOT</p>
+                <h1>Monster Offer</h1>
+            </div>
         </div>
-    </div>
+        <div class="header-actions">
+            <div id="recordingStatus" class="status-pill status-ready" aria-live="polite">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span id="recordingStatusText">准备就绪</span>
+            </div>
+            <button id="saveTXTButton" class="button button-quiet" type="button">导出对话</button>
+            <button id="modelConfigButton" class="button button-quiet" type="button">模型配置</button>
+        </div>
+    </header>
 
-    <!-- 右侧面板：文本输出 -->
-    <div class="right-panel">
-        <!-- 输出框 -->
-        <div class="output-container" id="outputText"></div>
-    </div>
-</div>
+    <nav id="mobileTabs" class="mobile-tabs" aria-label="工作区切换">
+        <button class="mobile-tab is-active" type="button" data-panel="interview" aria-selected="true">面试内容</button>
+        <button class="mobile-tab" type="button" data-panel="answer" aria-selected="false">AI 回答</button>
+    </nav>
 
-<!-- 模型配置弹窗 -->
-<div id="modelConfigModal" class="modal hidden">
+    <div class="workspace-grid">
+        <section id="interviewPane" class="workspace-pane interview-pane" aria-labelledby="transcriptTitle">
+            <div class="pane-heading">
+                <div>
+                    <div class="heading-line">
+                        <h2 id="transcriptTitle">面试内容</h2>
+                        <span id="questionCount" class="count-badge">0</span>
+                    </div>
+                    <p>语音会按句整理，选择问题后生成回答。</p>
+                </div>
+                <span class="local-badge">本地识别</span>
+            </div>
+
+            <div id="transcriptList" class="transcript-list" aria-live="polite">
+                <div id="transcriptEmptyState" class="empty-state compact-empty">
+                    <span class="empty-state-icon" aria-hidden="true">◌</span>
+                    <h3>等待面试内容</h3>
+                    <p>点击下方“开始转写”，识别结果会按句出现在这里。</p>
+                </div>
+            </div>
+
+            <div class="interview-controls">
+                <div class="record-toolbar">
+                    <button id="startButton" class="button button-record" type="button" title="快捷键 A">
+                        <span class="record-icon" aria-hidden="true"></span>
+                        开始转写
+                    </button>
+                    <button id="stopButton" class="button button-stop" type="button" disabled title="快捷键 A">
+                        <span class="stop-icon" aria-hidden="true"></span>
+                        停止转写
+                    </button>
+                    <button id="clearButton" class="button button-quiet" type="button" title="快捷键 C">清空</button>
+                </div>
+
+                <div class="manual-composer">
+                    <label class="sr-only" for="manualInput">手动输入面试问题</label>
+                    <textarea id="manualInput" rows="2" placeholder="语音识别不准确时，可在这里手动输入问题……"></textarea>
+                    <div class="composer-footer">
+                        <span>Ctrl + Enter 发送</span>
+                        <button id="manualSendButton" class="button button-primary button-small" type="button">发送并回答</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="answerPane" class="workspace-pane answer-pane" aria-labelledby="answerTitle">
+            <div class="answer-toolbar">
+                <div class="answer-context">
+                    <div class="heading-line">
+                        <h2 id="answerTitle">AI 辅助回答</h2>
+                        <span id="answerStatusBadge" class="answer-status status-idle">等待问题</span>
+                    </div>
+                    <p id="selectedQuestionText">请先从左侧选择一个问题</p>
+                </div>
+                <div class="answer-actions">
+                    <button id="copyAnswerButton" class="button button-quiet" type="button" disabled>复制回答</button>
+                    <button id="outputButton" class="button button-primary" type="button" disabled title="快捷键 F">生成回答</button>
+                </div>
+            </div>
+
+            <div class="output-container" id="outputText" aria-live="polite">
+                <div class="empty-state" id="answerEmptyState">
+                    <span class="empty-state-icon" aria-hidden="true">✦</span>
+                    <h3>选择一个面试问题</h3>
+                    <p>左侧转写完成后，选中问题并点击“生成回答”。</p>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<div id="modelConfigModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modelConfigTitle">
     <div class="modal-content">
-        <h3>模型配置</h3>
+        <div class="modal-heading">
+            <p class="eyebrow">MODEL SETTINGS</p>
+            <h3 id="modelConfigTitle">模型配置</h3>
+        </div>
         <label class="modal-field">
-            <span>模型（默认 Qwen）：</span>
-            <input
-                id="modelNameInput"
-                type="text"
-                placeholder="留空将使用默认 qwen-max-latest，或输入模型名（如 gpt-4o）"
-                class="model-input"
-            >
-            <!-- 自定义下拉列表，用于展示 /models/list/ 获取到的模型 -->
+            <span>模型</span>
+            <input id="modelNameInput" type="text" placeholder="默认 qwen-max-latest，或输入其他模型名" class="model-input">
             <div id="modelDropdown" class="model-dropdown hidden"></div>
         </label>
         <label class="modal-field">
-            <span>API Key：</span>
+            <span>API Key</span>
             <input id="modelApiKey" type="password" placeholder="如需覆盖后端配置，请填写">
         </label>
         <label class="modal-field">
-            <span>Base URL：</span>
+            <span>Base URL</span>
             <input id="modelBaseUrl" type="text" placeholder="例如：https://api.openai.com/v1">
         </label>
-        <div class="modal-actions">
-            <button id="modelTestConnectionButton" type="button">测试连接</button>
-            <button id="modelConfigSaveButton">保存</button>
-            <button id="modelConfigCancelButton">取消</button>
-        </div>
         <div id="modelTestResult" class="modal-test-result hidden" aria-live="polite"></div>
-        <p class="modal-tip">
-            不填写 API Key / Base URL / 模型名时，将使用后端默认配置：Qwen（qwen-max-latest）。<br>
-            如需使用任意 OpenAI 兼容模型，请在此处输入模型名，并填写对应的 API Key 与 Base URL，使用“测试连接”验证。
-        </p>
+        <p class="modal-tip">留空时使用后端默认 Qwen 配置。OpenAI 兼容模型需填写模型名、API Key 与 Base URL。</p>
+        <div class="modal-actions">
+            <button id="modelConfigCancelButton" class="button button-quiet" type="button">取消</button>
+            <button id="modelTestConnectionButton" class="button button-secondary" type="button">测试连接</button>
+            <button id="modelConfigSaveButton" class="button button-primary" type="button">保存配置</button>
+        </div>
     </div>
 </div>
 
-<!-- 引入主 JavaScript 文件 -->
 <script type="module" src="scripts.js"></script>
 </body>
 
