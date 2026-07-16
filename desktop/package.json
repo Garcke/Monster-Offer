@@ -42,8 +42,12 @@
       ]
     },
     "nsis": {
+      "artifactName": "Meeting-Monster-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "portable": {
+      "artifactName": "Meeting-Monster-Portable-${version}.${ext}"
     }
   }
 }
