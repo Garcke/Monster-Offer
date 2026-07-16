@@ -16,7 +16,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 
-LOGGER = logging.getLogger("monster-offer")
+LOGGER = logging.getLogger("meeting-monster")
 PROJECT_ROOT = Path(__file__).resolve().parent
 STATIC_DIR = PROJECT_ROOT / "static"
 
@@ -145,7 +145,7 @@ def create_app(
         yield
 
     application = FastAPI(
-        title="Monster Offer",
+        title="Meeting-Monster",
         lifespan=lifespan,
     )
 
@@ -173,7 +173,7 @@ def main() -> None:
     )
     host = os.getenv("APP_HOST", "127.0.0.1")
     port = int(os.getenv("APP_PORT", "9000"))
-    LOGGER.info("Starting Monster Offer at http://%s:%s", host, port)
+    LOGGER.info("Starting Meeting-Monster at http://%s:%s", host, port)
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 

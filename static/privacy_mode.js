@@ -26,7 +26,7 @@
         statusBadge.className = `privacy-status privacy-${captureState}`;
         statusBadge.textContent = captureLabel(captureState);
         statusBadge.title = captureState === 'protected'
-            ? '支持的屏幕捕获路径将尝试排除 Monster Offer 窗口'
+            ? '支持的屏幕捕获路径将尝试排除 Meeting-Monster 窗口'
             : '请开启内容脱敏模式，并优先共享指定窗口';
         headerToggle.classList.remove('hidden');
         headerToggle.textContent = redacted ? '退出脱敏' : '开启脱敏';

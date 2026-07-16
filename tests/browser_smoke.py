@@ -1,4 +1,4 @@
-"""Headless browser smoke checks for the Monster Offer workspace."""
+"""Headless browser smoke checks for the Meeting-Monster workspace."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ def main() -> None:
         assert page.locator("#modelConfigButton").count() == 0
         assert page.locator("#modelConfigModal").count() == 0
         assert page.locator("#modelStatus").inner_text() == "Generic OpenAI Compatible · local-model"
-        page.screenshot(path=str(ARTIFACT_DIR / "monster-offer-desktop.png"), full_page=True)
+        page.screenshot(path=str(ARTIFACT_DIR / "meeting-monster-desktop.png"), full_page=True)
 
         page.set_viewport_size({"width": 390, "height": 844})
         page.wait_for_timeout(150)
@@ -50,7 +50,7 @@ def main() -> None:
         page.locator('[data-panel="answer"]').click()
         assert not page.locator("#interviewPane").is_visible()
         assert page.locator("#answerPane").is_visible()
-        page.screenshot(path=str(ARTIFACT_DIR / "monster-offer-mobile.png"), full_page=True)
+        page.screenshot(path=str(ARTIFACT_DIR / "meeting-monster-mobile.png"), full_page=True)
 
         result = {
             "title": page.title(),

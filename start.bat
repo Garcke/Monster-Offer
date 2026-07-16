@@ -14,7 +14,7 @@ if /I "%~1"=="desktop" (
     exit /b %errorlevel%
 )
 
-echo Starting Monster Offer...
+echo Starting Meeting-Monster...
 if exist ".venv\Scripts\python.exe" (
     ".venv\Scripts\python.exe" server.py
 ) else (

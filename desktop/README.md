@@ -1,6 +1,6 @@
-# Monster Offer Desktop
+# Meeting-Monster Desktop
 
-This folder contains the Windows-first Electron shell for Monster Offer.
+This folder contains the Windows-first Electron shell for Meeting-Monster.
 
 ## Development
 
@@ -18,7 +18,7 @@ Set `MONSTER_OFFER_PROJECT_ROOT` when the Python project is outside the desktop 
 
 ## Privacy behavior
 
-- Window capture protection is enabled for Monster Offer windows by default.
+- Window capture protection is enabled for Meeting-Monster windows by default.
 - Press `Ctrl+Shift+P` or click `开启脱敏` to hide transcript, questions, answers, and model details behind the local privacy shield.
 - The shield does not send new audio or text requests and can be dismissed locally.
 - The status badge reports whether the system-level protection is protected, unsupported, or failed.

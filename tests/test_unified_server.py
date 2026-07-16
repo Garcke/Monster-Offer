@@ -51,7 +51,7 @@ class UnifiedServerTests(unittest.TestCase):
         with TestClient(app) as client:
             frontend = client.get("/")
             self.assertEqual(frontend.status_code, 200)
-            self.assertIn("Monster Offer", frontend.text)
+            self.assertIn("Meeting-Monster", frontend.text)
             self.assertEqual(client.get("/api/health/").json(), {"status": "ok"})
 
     def test_unified_asr_websocket_accepts_audio_and_flushes_final_text(self):

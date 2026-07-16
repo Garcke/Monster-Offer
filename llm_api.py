@@ -1,4 +1,4 @@
-"""Monster Offer text-model API with server-owned model configuration."""
+"""Meeting-Monster text-model API with server-owned model configuration."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def create_app(
     profile_resolver: ProfileResolver = resolve_active_profile,
     provider_factory: ProviderFactory = create_provider,
 ) -> FastAPI:
-    app = FastAPI(title="Monster Offer LLM API")
+    app = FastAPI(title="Meeting-Monster LLM API")
     app.state.conversation_history = []
 
     app.add_middleware(

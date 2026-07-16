@@ -37,11 +37,11 @@ test('frontend uses the unified same-origin HTTP and WebSocket routes', () => {
     assert.doesNotMatch(scripts, /localhost:2333|localhost:6220/);
 });
 
-test('Monster Offer branding provides a visible logo and browser icon', () => {
-    assert.match(html, /<title>Monster Offer<\/title>/);
+test('Meeting-Monster branding provides a visible logo and browser icon', () => {
+    assert.match(html, /<title>Meeting-Monster<\/title>/);
     assert.match(html, /rel="icon"[^>]*href="favicon\.png"/);
     assert.match(html, /class="brand-logo"[^>]*src="favicon\.png"/);
-    assert.match(html, /<h1>Monster Offer<\/h1>/);
+    assert.match(html, /<h1>Meeting-Monster<\/h1>/);
     assert.match(css, /\.brand-logo\s*\{/);
 });
 

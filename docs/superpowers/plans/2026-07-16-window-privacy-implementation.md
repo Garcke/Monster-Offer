@@ -1,8 +1,8 @@
-# Monster Offer Window Privacy Implementation Plan
+# Meeting-Monster Window Privacy Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task with verification checkpoints.
 
-**Goal:** Add a Windows-first Electron desktop shell that starts the existing Python service, protects all Monster Offer windows from supported capture paths, and provides a visible content-redaction privacy mode.
+**Goal:** Add a Windows-first Electron desktop shell that starts the existing Python service, protects all Meeting-Monster windows from supported capture paths, and provides a visible content-redaction privacy mode.
 
 **Architecture:** The Electron main process owns the BrowserWindow lifecycle, starts or reuses the local FastAPI sidecar, and delegates window policy to `WindowPrivacyManager`. A narrow preload bridge exposes only privacy status and redaction commands to the existing web frontend. The Python ASR, LLM, WebSocket, and HTTP routes remain unchanged.
 
@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Windows desktop is the first supported target; non-Windows reports capture protection as unsupported.
-- Every Monster Offer top-level window receives `setContentProtection(true)` when it is created or re-created.
+- Every Meeting-Monster top-level window receives `setContentProtection(true)` when it is created or re-created.
 - `Ctrl+Shift+P` toggles content redaction; redaction never triggers a new ASR or LLM request.
 - Taskbar/Dock hiding, process disguise, API Hooking, DLL injection, anti-debugging, and third-party window manipulation are excluded.
 - Existing `/ws/asr`, `/api/chat/`, model configuration, and Python service behavior remain compatible.
@@ -194,7 +194,7 @@ Commit: `git add desktop/privacy_manager.js tests/test_privacy_manager.mjs && gi
 
 ```json
 {
-  "name": "monster-offer-desktop",
+  "name": "meeting-monster-desktop",
   "version": "0.1.0",
   "private": true,
   "main": "main.js",
@@ -370,7 +370,7 @@ Expected: all Python tests pass and `uv pip check` reports compatible packages.
 
 Run: `rg -n "setSkipTaskbar|app\.dock\.hide|process\.title|undetectable|SetWindowLong|WriteProcessMemory|CreateRemoteThread|VirtualAllocEx" desktop static README.md`
 
-Expected: no matches in new Monster Offer implementation files.
+Expected: no matches in new Meeting-Monster implementation files.
 
 - [ ] **Step 4: Copy only the new runnable source files to the local runtime workspace.**
 

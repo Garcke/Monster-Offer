@@ -138,7 +138,7 @@ function createMainWindow() {
         height: 760,
         minWidth: 900,
         minHeight: 620,
-        title: 'Monster Offer',
+        title: 'Meeting-Monster',
         show: false,
         alwaysOnTop: true,
         autoHideMenuBar: true,
@@ -167,7 +167,7 @@ function createMainWindow() {
         mainWindow = null;
     });
     mainWindow.loadURL(SERVER_URL).catch((error) => {
-        console.error('[desktop] failed to load Monster Offer:', error);
+        console.error('[desktop] failed to load Meeting-Monster:', error);
     });
 }
 
@@ -197,7 +197,7 @@ app.whenReady().then(async () => {
         await startApplication();
     } catch (error) {
         console.error('[desktop] startup failed:', error);
-        dialog.showErrorBox('Monster Offer 启动失败', error instanceof Error ? error.message : String(error));
+        dialog.showErrorBox('Meeting-Monster 启动失败', error instanceof Error ? error.message : String(error));
         app.quit();
     }
 });

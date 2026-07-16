@@ -1,8 +1,8 @@
 {
-  "name": "monster-offer-desktop",
+  "name": "meeting-monster-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Monster Offer Windows privacy desktop shell",
+  "description": "Meeting-Monster Windows privacy desktop shell",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
