@@ -11,6 +11,7 @@ desktop/node_modules/
 desktop/dist/
 desktop/debug.log
 docs/
+.worktrees/
 *.p12
 *.pfx
 *.mobileprovision
