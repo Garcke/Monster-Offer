@@ -10,14 +10,17 @@ const read = (...parts) => fs.readFileSync(path.join(projectRoot, ...parts), 'ut
 test('preload exports one fixed nested Meeting Monster API', () => {
     const source = read('desktop', 'src', 'preload', 'index.ts');
     const exposedNamespaces = [...source.matchAll(
-        /\bcontextBridge\.exposeInMainWorld\s*\(\s*'([^']+)'/g,
-    )].map((match) => match[1]);
+        /\bcontextBridge\.exposeInMainWorld\s*\(\s*(['"])([^'"]+)\1/g,
+    )].map((match) => match[2]);
 
     assert.equal(exposedNamespaces.length, 1);
     assert.deepEqual(exposedNamespaces, ['meetingMonster']);
     assert.match(source, /contextBridge\.exposeInMainWorld\('meetingMonster', meetingMonster\)/);
     assert.match(source, /window:\s*\{/);
     assert.match(source, /privacy:\s*\{/);
+    assert.match(source, /settings:\s*\{/);
+    assert.match(source, /models:\s*\{/);
+    assert.match(source, /chat:\s*\{/);
     assert.match(source, /onState: \(callback: \(state: WindowState\) => void\)/);
     assert.match(source, /onStatus: \(callback: \(status: PrivacyStatus\) => void\)/);
     assert.doesNotMatch(source, /monsterOfferPrivacy|meetingMonsterDesktop/);

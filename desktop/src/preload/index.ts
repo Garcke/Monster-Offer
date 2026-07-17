@@ -3,6 +3,7 @@ import {
     IPC_CHANNELS,
     type MeetingMonsterApi,
     type PrivacyStatus,
+    type ChatStreamEvent,
     type Unsubscribe,
     type WindowState,
 } from '../shared/contracts';
@@ -31,6 +32,25 @@ const meetingMonster: MeetingMonsterApi = {
             Boolean(enabled),
         ),
         onStatus: (callback: (status: PrivacyStatus) => void) => subscribe(IPC_CHANNELS.privacy.status, callback),
+    },
+    settings: {
+        getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.settings.get),
+        saveConnection: (connection) => ipcRenderer.invoke(IPC_CHANNELS.settings.set, connection),
+        clearConnection: () => ipcRenderer.invoke(IPC_CHANNELS.settings.clear),
+        testConnection: (connection) => ipcRenderer.invoke(IPC_CHANNELS.settings.test, connection),
+    },
+    models: {
+        list: () => ipcRenderer.invoke(IPC_CHANNELS.models.list),
+        create: (profile) => ipcRenderer.invoke(IPC_CHANNELS.models.create, profile),
+        update: (profileId, profile) => ipcRenderer.invoke(IPC_CHANNELS.models.update, profileId, profile),
+        delete: (profileId) => ipcRenderer.invoke(IPC_CHANNELS.models.delete, profileId),
+        activate: (profileId) => ipcRenderer.invoke(IPC_CHANNELS.models.activate, profileId),
+        test: (profile) => ipcRenderer.invoke(IPC_CHANNELS.models.test, profile),
+    },
+    chat: {
+        send: (requestId, content) => ipcRenderer.invoke(IPC_CHANNELS.chat.send, requestId, content),
+        cancel: (requestId) => ipcRenderer.invoke(IPC_CHANNELS.chat.cancel, requestId),
+        onEvent: (callback: (event: ChatStreamEvent) => void) => subscribe(IPC_CHANNELS.chat.event, callback),
     },
 };
 

@@ -13,9 +13,14 @@ export const IPC_CHANNELS = {
         setCaptureProtection: 'privacy:set-capture-protection',
         status: 'privacy:status',
     },
-    settings: {get: 'settings:get', set: 'settings:set'},
-    models: {getStatus: 'models:get-status', configure: 'models:configure'},
-    chat: {send: 'chat:send', cancel: 'chat:cancel'},
+    settings: {
+        get: 'settings:get', set: 'settings:set', clear: 'settings:clear', test: 'settings:test-connection',
+    },
+    models: {
+        list: 'models:list', create: 'models:create', update: 'models:update', delete: 'models:delete',
+        activate: 'models:activate', test: 'models:test',
+    },
+    chat: {send: 'chat:send', cancel: 'chat:cancel', event: 'chat:event'},
     asr: {start: 'asr:start', stop: 'asr:stop', status: 'asr:status'},
 } as const;
 
@@ -44,6 +49,27 @@ export interface PrivacyPolicy {
     taskbarHidden: false;
 }
 
+export interface DesktopSettingsStatus {
+    configured: boolean;
+    baseUrl: string | null;
+}
+
+export interface DesktopConnectionInput {
+    baseUrl: string;
+    adminToken: string;
+}
+
+export interface ConnectionTestResult {
+    status: 'connected' | 'unauthorized' | 'unreachable';
+    adminAuthorized: boolean;
+}
+
+export interface ChatStreamEvent {
+    requestId: string;
+    type: 'chunk' | 'done' | 'error';
+    text?: string;
+}
+
 export type Unsubscribe = () => void;
 
 export interface MeetingMonsterApi {
@@ -60,5 +86,24 @@ export interface MeetingMonsterApi {
         getPolicy(): Promise<PrivacyPolicy>;
         setCaptureProtection(enabled: boolean): Promise<PrivacyStatus>;
         onStatus(callback: (status: PrivacyStatus) => void): Unsubscribe;
+    };
+    settings: {
+        getStatus(): Promise<DesktopSettingsStatus>;
+        saveConnection(connection: DesktopConnectionInput): Promise<DesktopSettingsStatus>;
+        clearConnection(): Promise<DesktopSettingsStatus>;
+        testConnection(connection: DesktopConnectionInput): Promise<ConnectionTestResult>;
+    };
+    models: {
+        list(): Promise<unknown>;
+        create(profile: Record<string, unknown>): Promise<unknown>;
+        update(profileId: string, profile: Record<string, unknown>): Promise<unknown>;
+        delete(profileId: string): Promise<void>;
+        activate(profileId: string): Promise<unknown>;
+        test(profile: Record<string, unknown>): Promise<unknown>;
+    };
+    chat: {
+        send(requestId: string, content: string): Promise<{requestId: string}>;
+        cancel(requestId: string): Promise<{cancelled: boolean}>;
+        onEvent(callback: (event: ChatStreamEvent) => void): Unsubscribe;
     };
 }
