@@ -56,8 +56,43 @@ function loadPreload() {
         invocations,
         setInvoke(handler) { invoke = handler; },
         deliver(port) { listeners.get('asr:port')({ports: [port]}); },
+        deliverStatus(status) { listeners.get('asr:status')({}, status); },
     };
 }
+
+test('preload closes the private PCM port before delivering a remote ASR error status', async () => {
+    const preload = loadPreload();
+    const port = new FakePort();
+    preload.deliver(port);
+    await preload.api.asr.start(16000);
+    let received;
+    preload.api.asr.onStatus((status) => {
+        received = status;
+        assert.equal(port.closed, true);
+    });
+
+    preload.deliverStatus({state: 'error'});
+
+    assert.deepEqual(received, {state: 'error'});
+    assert.throws(() => preload.api.asr.writePcm(new Int16Array([1])), /ASR is not recording/);
+});
+
+test('preload closes the private PCM port before delivering a remote ASR idle status', async () => {
+    const preload = loadPreload();
+    const port = new FakePort();
+    preload.deliver(port);
+    await preload.api.asr.start(16000);
+    let received;
+    preload.api.asr.onStatus((status) => {
+        received = status;
+        assert.equal(port.closed, true);
+    });
+
+    preload.deliverStatus({state: 'idle'});
+
+    assert.deepEqual(received, {state: 'idle'});
+    assert.throws(() => preload.api.asr.writePcm(new Int16Array([1])), /ASR is not recording/);
+});
 
 test('preload closes the private PCM port after a successful stop', async () => {
     const preload = loadPreload();

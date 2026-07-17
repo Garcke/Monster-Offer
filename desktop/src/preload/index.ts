@@ -93,7 +93,10 @@ const meetingMonster: MeetingMonsterApi = {
             }
         },
         getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.asr.getStatus),
-        onStatus: (callback: (status: AsrStatus) => void) => subscribe(IPC_CHANNELS.asr.status, callback),
+        onStatus: (callback: (status: AsrStatus) => void) => subscribe<AsrStatus>(IPC_CHANNELS.asr.status, (status) => {
+            if (status.state === 'error' || status.state === 'idle') closePcmPort();
+            callback(status);
+        }),
         onResult: (callback: (event: AsrResultEvent) => void) => subscribe(IPC_CHANNELS.asr.result, callback),
     },
 };
