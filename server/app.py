@@ -17,13 +17,13 @@ from fastapi.staticfiles import StaticFiles
 
 
 LOGGER = logging.getLogger("meeting-monster")
-PROJECT_ROOT = Path(__file__).resolve().parent
-STATIC_DIR = PROJECT_ROOT / "static"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+WEB_DIR = PROJECT_ROOT / "web"
 
 
 def load_local_asr_engine() -> Any:
     """Import the native ASR dependency only when the unified app starts."""
-    from local_asr import LocalASREngine
+    from server.asr import LocalASREngine
 
     return LocalASREngine()
 
@@ -39,7 +39,7 @@ class LazyLLMApp:
         if self._app is None:
             async with self._lock:
                 if self._app is None:
-                    self._app = importlib.import_module("llm_api").app
+                    self._app = importlib.import_module("server.llm_api").app
         await self._app(scope, receive, send)
 
 
@@ -157,8 +157,8 @@ def create_app(
     application.mount("/api", llm_app or LazyLLMApp(), name="api")
     application.mount(
         "/",
-        StaticFiles(directory=STATIC_DIR, html=True),
-        name="static",
+        StaticFiles(directory=WEB_DIR, html=True),
+        name="web",
     )
     return application
 

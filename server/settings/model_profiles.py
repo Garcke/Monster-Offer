@@ -13,8 +13,10 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SETTINGS_PATH = Path(__file__).resolve().parent / "model_settings.json"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_SETTINGS_PATH = (
+    Path(__file__).resolve().parents[1] / "config" / "default_model_profiles.json"
+)
 
 
 class ModelConfigurationError(RuntimeError):

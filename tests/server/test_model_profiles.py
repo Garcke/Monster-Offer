@@ -40,7 +40,7 @@ class ModelProfileTests(unittest.TestCase):
         }
 
     def test_resolves_active_profile_and_key_from_named_environment_variable(self):
-        from config.model_profiles import resolve_active_profile
+        from server.settings.model_profiles import resolve_active_profile
 
         resolved = resolve_active_profile(
             self.write_settings(self.base_payload()),
@@ -53,7 +53,7 @@ class ModelProfileTests(unittest.TestCase):
         self.assertEqual(resolved.model, "model-a")
 
     def test_environment_override_selects_another_profile(self):
-        from config.model_profiles import resolve_active_profile
+        from server.settings.model_profiles import resolve_active_profile
 
         resolved = resolve_active_profile(
             self.write_settings(self.base_payload()),
@@ -67,13 +67,13 @@ class ModelProfileTests(unittest.TestCase):
         self.assertEqual(resolved.protocol, "anthropic")
 
     def test_missing_required_key_names_the_environment_variable(self):
-        from config.model_profiles import ModelConfigurationError, resolve_active_profile
+        from server.settings.model_profiles import ModelConfigurationError, resolve_active_profile
 
         with self.assertRaisesRegex(ModelConfigurationError, "PRIMARY_API_KEY"):
             resolve_active_profile(self.write_settings(self.base_payload()), environ={})
 
     def test_keyless_local_profile_uses_non_secret_sdk_placeholder(self):
-        from config.model_profiles import resolve_active_profile
+        from server.settings.model_profiles import resolve_active_profile
 
         payload = self.base_payload()
         payload["profiles"]["primary"].update(
@@ -88,7 +88,7 @@ class ModelProfileTests(unittest.TestCase):
         self.assertEqual(resolved.api_key, "not-needed")
 
     def test_rejects_unknown_protocol_and_missing_active_profile(self):
-        from config.model_profiles import ModelConfigurationError, load_model_settings, resolve_active_profile
+        from server.settings.model_profiles import ModelConfigurationError, load_model_settings, resolve_active_profile
 
         invalid_protocol = self.base_payload()
         invalid_protocol["profiles"]["primary"]["protocol"] = "responses"
@@ -101,7 +101,7 @@ class ModelProfileTests(unittest.TestCase):
             resolve_active_profile(self.write_settings(missing_profile), environ={})
 
     def test_public_summary_never_exposes_endpoint_or_credentials(self):
-        from config.model_profiles import resolve_active_profile
+        from server.settings.model_profiles import resolve_active_profile
 
         resolved = resolve_active_profile(
             self.write_settings(self.base_payload()),
@@ -123,7 +123,7 @@ class ModelProfileTests(unittest.TestCase):
         self.assertNotIn("api_key_env", rendered)
 
     def test_project_defaults_use_generic_openai_and_remove_dashscope_profiles(self):
-        from config.model_profiles import load_model_settings
+        from server.settings.model_profiles import load_model_settings
 
         settings = load_model_settings()
 
@@ -136,7 +136,7 @@ class ModelProfileTests(unittest.TestCase):
         )
 
     def test_both_generic_project_profiles_are_keyless_and_use_explicit_protocols(self):
-        from config.model_profiles import resolve_active_profile
+        from server.settings.model_profiles import resolve_active_profile
 
         openai_profile = resolve_active_profile(
             environ={"LLM_ACTIVE_PROFILE": "generic_openai"}
@@ -151,14 +151,14 @@ class ModelProfileTests(unittest.TestCase):
         self.assertEqual(anthropic_profile.api_key, "not-needed")
 
     def test_operator_and_runtime_files_do_not_reference_dashscope(self):
-        project_root = Path(__file__).resolve().parents[1]
+        project_root = Path(__file__).resolve().parents[2]
         files = [
-            project_root / "config" / "model_settings.json",
+            project_root / "server" / "config" / "default_model_profiles.json",
             project_root / ".env.example",
             project_root / "README.md",
-            project_root / "llm_api.py",
-            project_root / "llm_providers.py",
-            project_root / "static" / "scripts.js",
+            project_root / "server" / "llm_api.py",
+            project_root / "server" / "llm_providers.py",
+            project_root / "web" / "scripts.js",
         ]
         combined = "\n".join(path.read_text(encoding="utf-8") for path in files).lower()
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from typing import Any, Protocol
 
-from config.model_profiles import ResolvedModelProfile
+from server.settings.model_profiles import ResolvedModelProfile
 
 
 ChatMessage = dict[str, str]

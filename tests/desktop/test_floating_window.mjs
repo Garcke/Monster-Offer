@@ -4,9 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const mainSource = fs.readFileSync(path.join(projectRoot, 'desktop', 'main.js'), 'utf8');
-const stylesSource = fs.readFileSync(path.join(projectRoot, 'static', 'styles.css'), 'utf8');
+const stylesSource = fs.readFileSync(path.join(projectRoot, 'web', 'styles.css'), 'utf8');
 
 test('Electron window is transparent, frameless, shadowless, and always on top', () => {
     assert.match(mainSource, /frame:\s*false/);

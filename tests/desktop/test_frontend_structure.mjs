@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-const html = await readFile(new URL('../static/index.html', import.meta.url), 'utf8');
-const css = await readFile(new URL('../static/styles.css', import.meta.url), 'utf8');
-const scripts = await readFile(new URL('../static/scripts.js', import.meta.url), 'utf8');
+const html = await readFile(new URL('../../web/index.html', import.meta.url), 'utf8');
+const css = await readFile(new URL('../../web/styles.css', import.meta.url), 'utf8');
+const scripts = await readFile(new URL('../../web/scripts.js', import.meta.url), 'utf8');
 
 test('desktop workspace exposes separate interview and answer panes', () => {
     assert.match(html, /class="workspace-grid"/);

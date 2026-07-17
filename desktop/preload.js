@@ -2,6 +2,11 @@
 
 const {contextBridge, ipcRenderer} = require('electron');
 
+const serverUrlArgument = process.argv.find((argument) => (
+    argument.startsWith('--meeting-monster-server-url=')
+));
+const serverUrl = serverUrlArgument?.slice('--meeting-monster-server-url='.length);
+
 contextBridge.exposeInMainWorld('monsterOfferPrivacy', {
     getStatus: () => ipcRenderer.invoke('privacy:get-status'),
     setCaptureProtection: (enabled) => ipcRenderer.invoke('privacy:set-capture-protection', Boolean(enabled)),
@@ -17,6 +22,7 @@ contextBridge.exposeInMainWorld('monsterOfferPrivacy', {
 });
 
 contextBridge.exposeInMainWorld('meetingMonsterDesktop', {
+    serverUrl,
     getWindowState: () => ipcRenderer.invoke('window:get-state'),
     setExpanded: (expanded) => ipcRenderer.invoke('window:set-expanded', Boolean(expanded)),
     toggleExpanded: () => ipcRenderer.invoke('window:toggle-expanded'),

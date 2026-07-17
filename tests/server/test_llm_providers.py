@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 import unittest
 
-from config.model_profiles import ResolvedModelProfile
+from server.settings.model_profiles import ResolvedModelProfile
 
 
 def make_profile(protocol: str) -> ResolvedModelProfile:
@@ -82,7 +82,7 @@ MESSAGES = [
 
 class LLMProviderTests(unittest.TestCase):
     def test_openai_adapter_streams_delta_text_and_preserves_messages(self):
-        from llm_providers import OpenAIProvider
+        from server.llm_providers import OpenAIProvider
 
         client = FakeOpenAIClient()
         provider = OpenAIProvider(make_profile("openai"), client=client)
@@ -98,7 +98,7 @@ class LLMProviderTests(unittest.TestCase):
         self.assertEqual(client.completions.kwargs["extra_body"], {"enable_search": True})
 
     def test_anthropic_adapter_moves_system_messages_to_top_level(self):
-        from llm_providers import AnthropicProvider
+        from server.llm_providers import AnthropicProvider
 
         client = FakeAnthropicClient()
         provider = AnthropicProvider(make_profile("anthropic"), client=client)
@@ -121,7 +121,7 @@ class LLMProviderTests(unittest.TestCase):
         self.assertNotIn("extra_body", kwargs)
 
     def test_factory_dispatches_by_explicit_protocol(self):
-        from llm_providers import AnthropicProvider, OpenAIProvider, create_provider
+        from server.llm_providers import AnthropicProvider, OpenAIProvider, create_provider
 
         self.assertIsInstance(
             create_provider(make_profile("openai"), client=FakeOpenAIClient()),

@@ -76,7 +76,7 @@ function startSidecar() {
         APP_HOST,
         APP_PORT: String(APP_PORT),
     };
-    sidecar = spawn(python, ['server.py'], {
+    sidecar = spawn(python, ['-m', 'server.app'], {
         cwd: PROJECT_ROOT,
         env: environment,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -208,6 +208,7 @@ function createMainWindow() {
         backgroundColor: '#00000000',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
+            additionalArguments: [`--meeting-monster-server-url=${SERVER_URL}`],
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: true,
@@ -240,7 +241,7 @@ function createMainWindow() {
     mainWindow.on('closed', () => {
         mainWindow = null;
     });
-    mainWindow.loadURL(`${SERVER_URL}/overlay.html`).catch((error) => {
+    mainWindow.loadFile(path.join(__dirname, 'renderer', 'overlay.html')).catch((error) => {
         console.error('[desktop] failed to load Meeting-Monster:', error);
     });
     mainWindow.show();

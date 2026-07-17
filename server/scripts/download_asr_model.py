@@ -14,7 +14,7 @@ import onnx
 import yaml
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MODEL_NAME = "sherpa-onnx-streaming-paraformer-bilingual-zh-en"
 MODEL_DIR = PROJECT_ROOT / "models" / MODEL_NAME
 HF_BASE_URL = "https://huggingface.co/csukuangfj/streaming-paraformer-zh/resolve/main"

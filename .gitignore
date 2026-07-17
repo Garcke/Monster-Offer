@@ -12,6 +12,7 @@ desktop/dist/
 desktop/debug.log
 docs/
 .worktrees/
+.superpowers/
 *.p12
 *.pfx
 *.mobileprovision

@@ -351,7 +351,7 @@ async function loadModelStatus() {
     } catch (error) {
         console.error('读取服务端模型状态失败:', error);
         modelStatus.textContent = '服务端模型 · 未配置';
-        modelStatus.title = '请检查 config/model_settings.json 和 .env';
+        modelStatus.title = '请检查 server/config/default_model_profiles.json 和 .env';
     }
 }
 

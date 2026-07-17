@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     import sherpa_onnx
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MODEL_DIR = (
     PROJECT_ROOT
     / "models"
@@ -95,7 +95,7 @@ class LocalASREngine:
         raise FileNotFoundError(
             "Local ASR model is incomplete. Missing files:\n"
             f"{missing_lines}\n"
-            "Run `python download_asr_model.py` from the project directory."
+            "Run `python -m server.scripts.download_asr_model` from the project directory."
         )
 
     def create_session(self, input_sample_rate: int = 16000) -> "LocalASRSession":

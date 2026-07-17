@@ -3,7 +3,7 @@ import unittest
 
 from fastapi.testclient import TestClient
 
-from config.model_profiles import ModelConfigurationError, ResolvedModelProfile
+from server.settings.model_profiles import ModelConfigurationError, ResolvedModelProfile
 
 
 def test_profile() -> ResolvedModelProfile:
@@ -35,7 +35,7 @@ class FakeProvider:
 
 class LLMAPITests(unittest.TestCase):
     def create_client(self, provider: FakeProvider, resolver=None):
-        from llm_api import create_app
+        from server.llm_api import create_app
 
         app = create_app(
             profile_resolver=resolver or (lambda: test_profile()),

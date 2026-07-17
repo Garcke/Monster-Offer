@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 let createQuestionStore;
 let parseAsrMessage;
 try {
-    ({createQuestionStore, parseAsrMessage} = await import('../static/question_store.js'));
+    ({createQuestionStore, parseAsrMessage} = await import('../../web/question_store.js'));
 } catch (error) {
     assert.fail(`question store module should be importable: ${error.message}`);
 }

@@ -1,10 +1,11 @@
 from types import SimpleNamespace
 import unittest
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from server import create_app
+from server.app import create_app
 
 
 class FakeASRSession:
@@ -38,6 +39,15 @@ def create_fake_llm_app() -> FastAPI:
         return {"status": "ok"}
 
     return app
+
+
+class SourceLayoutTests(unittest.TestCase):
+    def test_backend_python_sources_are_not_in_repository_root(self):
+        root = Path(__file__).resolve().parents[2]
+
+        self.assertFalse([path.name for path in root.glob("*.py")])
+        self.assertTrue((root / "server" / "app.py").is_file())
+        self.assertTrue((root / "web" / "index.html").is_file())
 
 
 class UnifiedServerTests(unittest.TestCase):

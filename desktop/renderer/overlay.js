@@ -1,9 +1,11 @@
 import PCMAudioRecorder from './audio_recorder.js';
 import {createQuestionStore, parseAsrMessage} from './question_store.js';
 
-const API_BASE_URL = `${window.location.origin}/api`;
-const ASR_WEBSOCKET_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const ASR_WEBSOCKET_URL = `${ASR_WEBSOCKET_PROTOCOL}//${window.location.host}/ws/asr`;
+const serverUrl = window.meetingMonsterDesktop?.serverUrl || window.location.origin;
+const API_BASE_URL = `${serverUrl}/api`;
+const asrUrl = new URL('/ws/asr', serverUrl);
+asrUrl.protocol = asrUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+const ASR_WEBSOCKET_URL = asrUrl.href;
 
 const overlayRoot = document.getElementById('overlayRoot');
 const statusText = document.getElementById('overlayStatusText');

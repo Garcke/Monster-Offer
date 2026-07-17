@@ -4,12 +4,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const mainSource = fs.readFileSync(path.join(projectRoot, 'desktop', 'main.js'), 'utf8');
 const preloadSource = fs.readFileSync(path.join(projectRoot, 'desktop', 'preload.js'), 'utf8');
-const htmlSource = fs.readFileSync(path.join(projectRoot, 'static', 'index.html'), 'utf8');
-const modeSource = fs.readFileSync(path.join(projectRoot, 'static', 'floating_mode.js'), 'utf8');
-const stylesSource = fs.readFileSync(path.join(projectRoot, 'static', 'styles.css'), 'utf8');
+const htmlSource = fs.readFileSync(path.join(projectRoot, 'web', 'index.html'), 'utf8');
+const modeSource = fs.readFileSync(path.join(projectRoot, 'web', 'floating_mode.js'), 'utf8');
+const stylesSource = fs.readFileSync(path.join(projectRoot, 'web', 'styles.css'), 'utf8');
 
 test('main process owns capsule and expanded window sizes', () => {
     assert.match(mainSource, /CAPSULE_BOUNDS = \{width: 360, height: 56\}/);
@@ -45,7 +45,7 @@ test('renderer contains capsule controls and mode synchronization', () => {
 });
 
 test('privacy renderer controls content protection without a redaction overlay', () => {
-    const privacySource = fs.readFileSync(path.join(projectRoot, 'static', 'privacy_mode.js'), 'utf8');
+    const privacySource = fs.readFileSync(path.join(projectRoot, 'web', 'privacy_mode.js'), 'utf8');
     assert.match(privacySource, /setCaptureProtection/);
     assert.match(privacySource, /capsuleProtectionToggle/);
     assert.doesNotMatch(privacySource, /setRedacted|privacy-redacted|privacyRedactionShield/);

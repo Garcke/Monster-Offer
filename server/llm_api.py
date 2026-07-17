@@ -14,15 +14,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from config.model_profiles import (
+from server.settings.model_profiles import (
     ModelConfigurationError,
     ResolvedModelProfile,
     resolve_active_profile,
 )
-from llm_providers import LLMProvider, create_provider
+from server.llm_providers import LLMProvider, create_provider
 
 
-PROMPT_FILE = Path(__file__).resolve().parent / "cache" / "prompt.txt"
+PROMPT_FILE = Path(__file__).resolve().parents[1] / "cache" / "prompt.txt"
 
 
 class UserMessage(BaseModel):

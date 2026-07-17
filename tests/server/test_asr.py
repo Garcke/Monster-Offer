@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from local_asr import LocalASRSession, RecognitionMessage
+from server.asr import LocalASRSession, RecognitionMessage
 
 
 class FakeStream:
