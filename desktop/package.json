@@ -1,13 +1,17 @@
 {
   "name": "meeting-monster-desktop",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "private": true,
   "description": "Meeting-Monster Windows privacy desktop shell",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "check": "node --check main.js && node --check preload.js && node --check privacy_manager.js",
-    "dist": "electron-builder --win nsis portable"
+    "dist": "npm run dist:win",
+    "dist:win": "electron-builder --win nsis portable",
+    "dist:win:unsigned": "electron-builder --win nsis portable -c.win.signAndEditExecutable=false -c.forceCodeSigning=false",
+    "dist:mac": "electron-builder --mac dmg zip --universal",
+    "dist:mac:unsigned": "electron-builder --mac dmg zip --universal -c.mac.identity=null -c.mac.hardenedRuntime=false -c.mac.notarize=false -c.forceCodeSigning=false"
   },
   "devDependencies": {
     "electron": "37.2.6",
@@ -25,7 +29,7 @@
       "!dist{,/**/*}"
     ],
     "win": {
-      "signAndEditExecutable": false,
+      "signAndEditExecutable": true,
       "target": [
         {
           "target": "nsis",
@@ -48,6 +52,28 @@
     },
     "portable": {
       "artifactName": "Meeting-Monster-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "notarize": true,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        },
+        {
+          "target": "zip",
+          "arch": ["universal"]
+        }
+      ]
+    },
+    "dmg": {
+      "artifactName": "Meeting-Monster-Mac-Universal-${version}.${ext}"
+    },
+    "zip": {
+      "artifactName": "Meeting-Monster-Mac-Universal-${version}.${ext}"
     }
   }
 }

@@ -10,5 +10,9 @@ models/
 desktop/node_modules/
 desktop/dist/
 desktop/debug.log
+*.p12
+*.pfx
+*.mobileprovision
+*.provisionprofile
 *.tar.bz2
 *.part
