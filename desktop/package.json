@@ -3,10 +3,12 @@
   "version": "2.2.1",
   "private": true,
   "description": "Meeting-Monster Windows privacy desktop shell",
-  "main": "main.js",
+  "main": "dist/main/main.js",
   "scripts": {
-    "start": "electron .",
-    "check": "node --check main.js && node --check preload.js && node --check privacy_manager.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "npm run build && electron .",
+    "check": "npm run typecheck",
     "dist": "npm run dist:win",
     "dist:win": "electron-builder --win nsis portable",
     "dist:win:unsigned": "electron-builder --win nsis portable -c.win.signAndEditExecutable=false -c.forceCodeSigning=false",
@@ -14,19 +16,20 @@
     "dist:mac:unsigned": "electron-builder --mac dmg zip --universal -c.mac.identity=null -c.mac.hardenedRuntime=false -c.mac.notarize=false -c.forceCodeSigning=false"
   },
   "devDependencies": {
+    "@types/node": "22.20.1",
     "electron": "37.2.6",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "typescript": "5.9.3"
   },
   "build": {
     "appId": "com.garcke.meetingmonster",
     "productName": "Meeting-Monster",
     "directories": {
-      "output": "dist"
+      "output": "release"
     },
     "files": [
       "**/*",
-      "!debug.log",
-      "!dist{,/**/*}"
+      "!debug.log"
     ],
     "win": {
       "signAndEditExecutable": true,

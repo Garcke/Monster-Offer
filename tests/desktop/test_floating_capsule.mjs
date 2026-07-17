@@ -5,28 +5,29 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const mainSource = fs.readFileSync(path.join(projectRoot, 'desktop', 'main.js'), 'utf8');
-const preloadSource = fs.readFileSync(path.join(projectRoot, 'desktop', 'preload.js'), 'utf8');
+const mainSource = fs.readFileSync(path.join(projectRoot, 'desktop', 'src', 'main', 'main.ts'), 'utf8');
+const preloadSource = fs.readFileSync(path.join(projectRoot, 'desktop', 'src', 'preload', 'index.ts'), 'utf8');
+const contractsSource = fs.readFileSync(path.join(projectRoot, 'desktop', 'src', 'shared', 'contracts.ts'), 'utf8');
 const htmlSource = fs.readFileSync(path.join(projectRoot, 'web', 'index.html'), 'utf8');
 const modeSource = fs.readFileSync(path.join(projectRoot, 'web', 'floating_mode.js'), 'utf8');
 const stylesSource = fs.readFileSync(path.join(projectRoot, 'web', 'styles.css'), 'utf8');
 
 test('main process owns capsule and expanded window sizes', () => {
-    assert.match(mainSource, /CAPSULE_BOUNDS = \{width: 360, height: 56\}/);
-    assert.match(mainSource, /EXPANDED_BOUNDS = \{width: 720, height: 520\}/);
+    assert.match(mainSource, /width: 360, height: 56/);
+    assert.match(mainSource, /width: 720, height: 520/);
     assert.match(mainSource, /setWindowMode\(/);
-    assert.match(mainSource, /privacy:set-capture-protection/);
+    assert.match(contractsSource, /privacy:set-capture-protection/);
     assert.doesNotMatch(mainSource, /privacy:set-redacted|toggleRedacted/);
     assert.match(mainSource, /globalShortcut\.register\('CommandOrControl\+Shift\+M'/);
 });
 
 test('preload exposes window mode controls without exposing Electron internals', () => {
-    assert.match(preloadSource, /meetingMonsterDesktop/);
-    assert.match(preloadSource, /getWindowState/);
+    assert.match(preloadSource, /'meetingMonster'/);
+    assert.match(preloadSource, /getState/);
     assert.match(preloadSource, /setExpanded/);
-    assert.match(preloadSource, /hideWindow/);
-    assert.match(preloadSource, /showWindow/);
-    assert.match(preloadSource, /onWindowState/);
+    assert.match(preloadSource, /hide/);
+    assert.match(preloadSource, /show/);
+    assert.match(preloadSource, /onState/);
     assert.match(preloadSource, /setCaptureProtection/);
     assert.doesNotMatch(preloadSource, /setRedacted/);
 });

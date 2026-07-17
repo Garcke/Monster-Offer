@@ -44,8 +44,7 @@ test('Electron overlay uses balanced semi-transparent glass layers', () => {
 });
 
 test('Electron main process loads the dedicated local overlay renderer', () => {
-    const main = fs.readFileSync(path.join(projectRoot, 'desktop', 'main.js'), 'utf8');
-    assert.match(main, /spawn\(python, \['-m', 'server\.app'\]/);
-    assert.match(main, /loadFile\(path\.join\(__dirname, 'renderer', 'overlay\.html'\)\)/);
-    assert.doesNotMatch(main, /loadURL\(`\$\{SERVER_URL\}\/overlay\.html/);
+    const main = fs.readFileSync(path.join(projectRoot, 'desktop', 'src', 'main', 'main.ts'), 'utf8');
+    assert.doesNotMatch(main, /child_process|spawn\(|python|loadURL/);
+    assert.match(main, /loadFile\(path\.join\(__dirname, '\.\.', '\.\.', 'renderer', 'overlay\.html'\)\)/);
 });

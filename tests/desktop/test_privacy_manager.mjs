@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {WindowPrivacyManager} from '../../desktop/privacy_manager.js';
+import {WindowPrivacyManager} from '../../desktop/dist/main/privacy-manager.js';
 
 function fakeWindow({protectedState = true, throws = false, supported = true} = {}) {
     return {

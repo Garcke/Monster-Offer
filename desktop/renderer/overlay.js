@@ -1,7 +1,7 @@
 import PCMAudioRecorder from './audio_recorder.js';
 import {createQuestionStore, parseAsrMessage} from './question_store.js';
 
-const serverUrl = window.meetingMonsterDesktop?.serverUrl || window.location.origin;
+const serverUrl = window.location.origin;
 const API_BASE_URL = `${serverUrl}/api`;
 const asrUrl = new URL('/ws/asr', serverUrl);
 asrUrl.protocol = asrUrl.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -29,8 +29,8 @@ const assistButton = document.getElementById('overlayAssistButton');
 const followupButton = document.getElementById('overlayFollowupButton');
 const recapButton = document.getElementById('overlayRecapButton');
 
-const desktopApi = window.meetingMonsterDesktop;
-const privacyApi = window.monsterOfferPrivacy;
+const desktopApi = window.meetingMonster?.window;
+const privacyApi = window.meetingMonster?.privacy;
 const questionStore = createQuestionStore();
 const recorder = new PCMAudioRecorder();
 
@@ -364,7 +364,7 @@ function setAction(action, label) {
 expandButton.addEventListener('click', () => {
     desktopApi?.setExpanded(!isExpanded).then(renderWindowState).catch(() => {});
 });
-hideButton.addEventListener('click', () => desktopApi?.hideWindow().catch(() => {}));
+hideButton.addEventListener('click', () => desktopApi?.hide().catch(() => {}));
 protectionButton.addEventListener('click', async () => {
     if (!privacyApi?.getStatus || !privacyApi?.setCaptureProtection) return;
     protectionButton.disabled = true;
@@ -406,8 +406,8 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-desktopApi?.onWindowState(renderWindowState);
-desktopApi?.getWindowState().then(renderWindowState).catch(() => renderWindowState({mode: 'capsule'}));
+desktopApi?.onState(renderWindowState);
+desktopApi?.getState().then(renderWindowState).catch(() => renderWindowState({mode: 'capsule'}));
 privacyApi?.onStatus(renderProtectionStatus);
 privacyApi?.getStatus().then(renderProtectionStatus).catch(() => renderProtectionStatus({captureProtection: 'failed'}));
 
