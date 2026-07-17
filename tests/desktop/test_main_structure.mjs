@@ -43,3 +43,12 @@ test('main IPC registration is sender-authorized and idempotent', () => {
     assert.match(source, /ipcMain\.removeHandler\(/);
     assert.match(source, /if \(ipcHandlersRegistered\) return/);
 });
+
+test('main keeps remote ASR networking and PCM ports out of the renderer', () => {
+    const source = read('desktop', 'src', 'main', 'main.ts');
+
+    assert.match(source, /new MessageChannelMain\(\)/);
+    assert.match(source, /IPC_CHANNELS\.asr\.start/);
+    assert.match(source, /loadConnection\(\)/);
+    assert.doesNotMatch(source, /APP_ADMIN_TOKEN.*ws\/asr|Authorization.*ws\/asr/s);
+});

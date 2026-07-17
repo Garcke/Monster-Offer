@@ -15,15 +15,19 @@ test('preload exports one fixed nested Meeting Monster API', () => {
 
     assert.equal(exposedNamespaces.length, 1);
     assert.deepEqual(exposedNamespaces, ['meetingMonster']);
-    assert.match(source, /contextBridge\.exposeInMainWorld\('meetingMonster', meetingMonster\)/);
+    assert.match(source, /contextBridge\.exposeInMainWorld\(\s*(['"])meetingMonster\1,\s*meetingMonster\s*\)/);
     assert.match(source, /window:\s*\{/);
     assert.match(source, /privacy:\s*\{/);
     assert.match(source, /settings:\s*\{/);
     assert.match(source, /models:\s*\{/);
     assert.match(source, /chat:\s*\{/);
+    assert.match(source, /asr:\s*\{/);
+    assert.match(source, /writePcm:\s*\(chunk\)/);
+    assert.match(source, /postMessage\(copy,\s*\[copy\]\)/);
     assert.match(source, /onState: \(callback: \(state: WindowState\) => void\)/);
     assert.match(source, /onStatus: \(callback: \(status: PrivacyStatus\) => void\)/);
     assert.doesNotMatch(source, /monsterOfferPrivacy|meetingMonsterDesktop/);
+    assert.doesNotMatch(source, /fetch\s*\(|new WebSocket|ipcRenderer\.send\(\s*[^I]/);
     assert.doesNotMatch(source, /send\s*:\s*ipcRenderer|invoke\s*:\s*ipcRenderer|on\s*:\s*ipcRenderer/);
     assert.doesNotMatch(source, /exposeInMainWorld\([^,]+,\s*\{[^}]*ipcRenderer/s);
 });

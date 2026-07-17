@@ -4,9 +4,20 @@ import {
     type MeetingMonsterApi,
     type PrivacyStatus,
     type ChatStreamEvent,
+    type AsrResultEvent,
+    type AsrStatus,
     type Unsubscribe,
     type WindowState,
 } from '../shared/contracts';
+
+let pcmPort: MessagePort | null = null;
+
+ipcRenderer.on(IPC_CHANNELS.asr.port, (event) => {
+    const port = event.ports[0];
+    if (!port) throw new Error('ASR PCM channel is unavailable');
+    pcmPort?.close();
+    pcmPort = port;
+});
 
 function subscribe<T>(channel: string, callback: (value: T) => void): Unsubscribe {
     if (typeof callback !== 'function') throw new TypeError('Meeting Monster event callback must be a function');
@@ -51,6 +62,23 @@ const meetingMonster: MeetingMonsterApi = {
         send: (requestId, content) => ipcRenderer.invoke(IPC_CHANNELS.chat.send, requestId, content),
         cancel: (requestId) => ipcRenderer.invoke(IPC_CHANNELS.chat.cancel, requestId),
         onEvent: (callback: (event: ChatStreamEvent) => void) => subscribe(IPC_CHANNELS.chat.event, callback),
+    },
+    asr: {
+        start: async (sampleRate) => {
+            const status = await ipcRenderer.invoke(IPC_CHANNELS.asr.start, sampleRate);
+            if (!pcmPort) throw new Error('ASR PCM channel is unavailable');
+            return status;
+        },
+        writePcm: (chunk) => {
+            if (!(chunk instanceof Int16Array) || !chunk.byteLength) throw new TypeError('PCM chunk must be Int16Array');
+            if (!pcmPort) throw new Error('ASR is not recording');
+            const copy = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer;
+            pcmPort.postMessage(copy, [copy]);
+        },
+        stop: () => ipcRenderer.invoke(IPC_CHANNELS.asr.stop),
+        getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.asr.getStatus),
+        onStatus: (callback: (status: AsrStatus) => void) => subscribe(IPC_CHANNELS.asr.status, callback),
+        onResult: (callback: (event: AsrResultEvent) => void) => subscribe(IPC_CHANNELS.asr.result, callback),
     },
 };
 

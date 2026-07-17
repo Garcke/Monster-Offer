@@ -1,10 +1,13 @@
-import {app, BrowserWindow, globalShortcut, ipcMain, safeStorage, type WebContents} from 'electron';
+import {app, BrowserWindow, globalShortcut, ipcMain, MessageChannelMain, safeStorage, type WebContents} from 'electron';
 import path from 'node:path';
 import {DesktopSettingsStore, validateBackendUrl, type DesktopConnection} from './desktop-settings';
 import {WindowPrivacyManager} from './privacy-manager';
 import {RemoteApiClient, validateModelProfileInput, type ChatStreamEvent, type ModelProfileInput} from './remote-api-client';
+import {RemoteAsrClient} from './remote-asr-client';
 import {
     IPC_CHANNELS,
+    type AsrResultEvent,
+    type AsrStatus,
     type ConnectionTestResult,
     type DesktopSettingsStatus,
     type PrivacyPolicy,
@@ -21,6 +24,9 @@ let settingsStore: DesktopSettingsStore | null = null;
 let windowMode: WindowMode = 'capsule';
 let ipcHandlersRegistered = false;
 const activeChatRequests = new Map<string, {controller: AbortController; sender: WebContents}>();
+let remoteAsrClient: RemoteAsrClient | null = null;
+let pcmPort: Electron.MessagePortMain | null = null;
+let asrOwner: WebContents | null = null;
 
 function isAuthorizedSender(event: Electron.IpcMainInvokeEvent): boolean {
     const senderWindow = BrowserWindow.fromWebContents(event.sender);
@@ -35,6 +41,60 @@ function getPrivacyManager(): WindowPrivacyManager {
 function getSettingsStore(): DesktopSettingsStore {
     if (!settingsStore) throw new Error('Desktop settings are not ready');
     return settingsStore;
+}
+
+function getLiveAsrOwner(): WebContents | null {
+    if (!asrOwner || asrOwner.isDestroyed() || !mainWindow || mainWindow.isDestroyed() || mainWindow.webContents !== asrOwner) {
+        return null;
+    }
+    return asrOwner;
+}
+
+function sendAsrStatus(status: AsrStatus): void {
+    const owner = getLiveAsrOwner();
+    if (owner) owner.send(IPC_CHANNELS.asr.status, status);
+}
+
+function sendAsrResult(event: AsrResultEvent): void {
+    const owner = getLiveAsrOwner();
+    if (owner) owner.send(IPC_CHANNELS.asr.result, event);
+}
+
+function closeAsrPort(): void {
+    if (pcmPort) pcmPort.close();
+    pcmPort = null;
+    asrOwner = null;
+}
+
+function getRemoteAsrClient(): RemoteAsrClient {
+    getSettingsStore();
+    if (remoteAsrClient) return remoteAsrClient;
+    remoteAsrClient = new RemoteAsrClient({
+        production: app.isPackaged,
+        createWebSocket: (url) => new globalThis.WebSocket(url),
+        onStatus: (status) => {
+            sendAsrStatus(status);
+            if (status.state === 'error') closeAsrPort();
+        },
+        onResult: sendAsrResult,
+        setTimer: (callback, milliseconds) => setTimeout(callback, milliseconds),
+        clearTimer: (timer) => clearTimeout(timer),
+    });
+    return remoteAsrClient;
+}
+
+function terminateAsr(): void {
+    remoteAsrClient?.dispose();
+    remoteAsrClient = null;
+    sendAsrResult({type: 'error', text: 'Remote ASR input failed'});
+    sendAsrStatus({state: 'error', message: 'Remote ASR input failed'});
+    closeAsrPort();
+}
+
+function disposeAsr(): void {
+    remoteAsrClient?.dispose();
+    remoteAsrClient = null;
+    closeAsrPort();
 }
 
 async function getRemoteApiClient(connection?: DesktopConnection): Promise<RemoteApiClient> {
@@ -109,6 +169,9 @@ function registerIpcHandlers(): void {
         ...Object.values(IPC_CHANNELS.settings),
         ...Object.values(IPC_CHANNELS.models),
         ...Object.values(IPC_CHANNELS.chat).filter((channel) => channel !== IPC_CHANNELS.chat.event),
+        ...Object.values(IPC_CHANNELS.asr).filter((channel) => (
+            channel !== IPC_CHANNELS.asr.status && channel !== IPC_CHANNELS.asr.result && channel !== IPC_CHANNELS.asr.port
+        )),
     ];
     for (const channel of handledChannels) ipcMain.removeHandler(channel);
 
@@ -232,6 +295,48 @@ function registerIpcHandlers(): void {
         activeRequest.controller.abort();
         return {cancelled: true};
     });
+    ipcMain.handle(IPC_CHANNELS.asr.start, async (event, sampleRate: unknown) => {
+        if (!isAuthorizedSender(event)) throw new Error('Unauthorized ASR request');
+        if (!Number.isInteger(sampleRate)) throw new TypeError('ASR sample rate must be an integer');
+        const connection = await getSettingsStore().loadConnection();
+        if (!connection) throw new Error('Remote server is not configured');
+        if (asrOwner) throw new Error('ASR is already active');
+
+        const {port1, port2} = new MessageChannelMain();
+        asrOwner = event.sender;
+        pcmPort = port1;
+        port1.on('message', ({data}) => {
+            if (!(data instanceof ArrayBuffer)) {
+                terminateAsr();
+                return;
+            }
+            try {
+                remoteAsrClient?.writePcm(data);
+            } catch {
+                if (remoteAsrClient?.getStatus().state !== 'error') terminateAsr();
+            }
+        });
+        port1.start();
+        event.sender.postMessage(IPC_CHANNELS.asr.port, null, [port2]);
+        try {
+            return await getRemoteAsrClient().start(connection.baseUrl, sampleRate as number);
+        } catch (error) {
+            closeAsrPort();
+            throw error;
+        }
+    });
+    ipcMain.handle(IPC_CHANNELS.asr.stop, async (event): Promise<AsrStatus> => {
+        if (!isAuthorizedSender(event)) throw new Error('Unauthorized ASR request');
+        try {
+            return await getRemoteAsrClient().stop();
+        } finally {
+            if (remoteAsrClient?.getStatus().state === 'idle') closeAsrPort();
+        }
+    });
+    ipcMain.handle(IPC_CHANNELS.asr.getStatus, (event): AsrStatus => {
+        if (!isAuthorizedSender(event)) throw new Error('Unauthorized ASR request');
+        return getRemoteAsrClient().getStatus();
+    });
 
     ipcHandlersRegistered = true;
 }
@@ -277,6 +382,7 @@ function createMainWindow(): void {
     });
     mainWindow.on('hide', broadcastWindowState);
     mainWindow.on('closed', () => {
+        disposeAsr();
         mainWindow = null;
     });
     void mainWindow.loadFile(path.join(__dirname, '..', '..', 'renderer', 'overlay.html'));
@@ -305,6 +411,7 @@ function startApplication(): void {
 
 app.whenReady().then(startApplication).catch((error: unknown) => {
     console.error('[desktop] startup failed:', error);
+    disposeAsr();
     app.quit();
 });
 
@@ -312,7 +419,10 @@ app.on('activate', () => {
     if (!mainWindow || mainWindow.isDestroyed()) createMainWindow();
 });
 
-app.on('before-quit', () => globalShortcut.unregisterAll());
+app.on('before-quit', () => {
+    disposeAsr();
+    globalShortcut.unregisterAll();
+});
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();

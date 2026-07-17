@@ -21,7 +21,14 @@ export const IPC_CHANNELS = {
         activate: 'models:activate', test: 'models:test',
     },
     chat: {send: 'chat:send', cancel: 'chat:cancel', event: 'chat:event'},
-    asr: {start: 'asr:start', stop: 'asr:stop', status: 'asr:status'},
+    asr: {
+        start: 'asr:start',
+        stop: 'asr:stop',
+        getStatus: 'asr:get-status',
+        status: 'asr:status',
+        result: 'asr:result',
+        port: 'asr:port',
+    },
 } as const;
 
 type ValueOf<T> = T[keyof T];
@@ -70,6 +77,18 @@ export interface ChatStreamEvent {
     text?: string;
 }
 
+export type AsrState = 'idle' | 'connecting' | 'recording' | 'stopping' | 'error';
+
+export interface AsrStatus {
+    state: AsrState;
+    message?: string;
+}
+
+export interface AsrResultEvent {
+    type: 'partial' | 'final' | 'error';
+    text: string;
+}
+
 export type Unsubscribe = () => void;
 
 export interface MeetingMonsterApi {
@@ -105,5 +124,13 @@ export interface MeetingMonsterApi {
         send(requestId: string, content: string): Promise<{requestId: string}>;
         cancel(requestId: string): Promise<{cancelled: boolean}>;
         onEvent(callback: (event: ChatStreamEvent) => void): Unsubscribe;
+    };
+    asr: {
+        start(sampleRate: number): Promise<AsrStatus>;
+        writePcm(chunk: Int16Array): void;
+        stop(): Promise<AsrStatus>;
+        getStatus(): Promise<AsrStatus>;
+        onStatus(callback: (status: AsrStatus) => void): Unsubscribe;
+        onResult(callback: (event: AsrResultEvent) => void): Unsubscribe;
     };
 }
