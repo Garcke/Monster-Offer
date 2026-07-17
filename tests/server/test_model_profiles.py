@@ -3,6 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from cryptography.fernet import Fernet
+
 
 class ModelProfileTests(unittest.TestCase):
     def write_settings(self, payload: dict) -> Path:
@@ -138,17 +140,60 @@ class ModelProfileTests(unittest.TestCase):
     def test_both_generic_project_profiles_are_keyless_and_use_explicit_protocols(self):
         from server.settings.model_profiles import resolve_active_profile
 
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        master_key = Fernet.generate_key().decode("ascii")
+        environ = {
+            "MODEL_CONFIG_MASTER_KEY": master_key,
+            "MODEL_PROFILE_STORE_PATH": str(Path(temp_dir.name) / "profiles.json"),
+        }
+
         openai_profile = resolve_active_profile(
-            environ={"LLM_ACTIVE_PROFILE": "generic_openai"}
+            environ={**environ, "LLM_ACTIVE_PROFILE": "generic_openai"}
         )
         anthropic_profile = resolve_active_profile(
-            environ={"LLM_ACTIVE_PROFILE": "generic_anthropic"}
+            environ={**environ, "LLM_ACTIVE_PROFILE": "generic_anthropic"}
         )
 
         self.assertEqual(openai_profile.protocol, "openai")
         self.assertEqual(openai_profile.api_key, "not-needed")
         self.assertEqual(anthropic_profile.protocol, "anthropic")
         self.assertEqual(anthropic_profile.api_key, "not-needed")
+
+    def test_runtime_store_prefers_encrypted_key_over_legacy_environment_fallback(self):
+        from server.settings.model_profiles import resolve_active_profile
+        from server.settings.profile_store import ModelProfileInput, ProfileStore, SecretCipher
+
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        path = Path(temp_dir.name) / "profiles.json"
+        master_key = Fernet.generate_key().decode("ascii")
+        store = ProfileStore(path, SecretCipher(master_key))
+        store.create_profile(
+            ModelProfileInput(
+                id="primary",
+                label="Primary",
+                protocol="openai",
+                base_url="https://example.com/v1",
+                model="model-a",
+                api_key="stored-secret",
+                api_key_env="PRIMARY_API_KEY",
+                api_key_required=True,
+                max_tokens=2048,
+                temperature=0.2,
+            )
+        )
+        store.activate_profile("primary")
+
+        resolved = resolve_active_profile(
+            environ={
+                "MODEL_CONFIG_MASTER_KEY": master_key,
+                "MODEL_PROFILE_STORE_PATH": str(path),
+                "PRIMARY_API_KEY": "environment-secret",
+            }
+        )
+
+        self.assertEqual(resolved.api_key, "stored-secret")
 
     def test_operator_and_runtime_files_do_not_reference_dashscope(self):
         project_root = Path(__file__).resolve().parents[2]

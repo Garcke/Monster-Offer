@@ -17,6 +17,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SETTINGS_PATH = (
     Path(__file__).resolve().parents[1] / "config" / "default_model_profiles.json"
 )
+DEFAULT_PROFILE_STORE_PATH = PROJECT_ROOT / "cache" / "model_profiles.json"
 
 
 class ModelConfigurationError(RuntimeError):
@@ -30,8 +31,9 @@ class ModelProfile(BaseModel):
     protocol: Literal["openai", "anthropic"]
     base_url: str = Field(min_length=1)
     model: str = Field(min_length=1)
-    api_key_env: str = Field(min_length=1)
+    api_key_env: str = ""
     api_key_required: bool = True
+    encrypted_api_key: str | None = None
     max_tokens: int = Field(default=4096, gt=0)
     temperature: float | None = Field(default=0.3, ge=0, le=2)
     top_p: float | None = Field(default=None, gt=0, le=1)
@@ -56,6 +58,7 @@ class ModelProfile(BaseModel):
 class ModelSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    version: int = Field(default=1, ge=1)
     active_profile: str = Field(min_length=1)
     profiles: dict[str, ModelProfile] = Field(min_length=1)
 
@@ -108,6 +111,19 @@ def resolve_active_profile(
         environment: Mapping[str, str] = os.environ
     else:
         environment = environ
+
+    if path is None:
+        from .profile_store import ProfileStore, SecretCipher
+
+        store_path = Path(
+            environment.get("MODEL_PROFILE_STORE_PATH", "").strip()
+            or DEFAULT_PROFILE_STORE_PATH
+        )
+        profile_id = environment.get("LLM_ACTIVE_PROFILE", "").strip() or None
+        return ProfileStore(
+            store_path,
+            SecretCipher.from_environment(environment),
+        ).resolve_active_profile(environment, profile_id)
 
     settings = load_model_settings(path)
     profile_id = environment.get("LLM_ACTIVE_PROFILE", "").strip() or settings.active_profile
