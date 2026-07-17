@@ -162,7 +162,8 @@ export class ModelSettingsController {
         if (!window.confirm(`删除模型“${profile.label}”？`)) return;
         try {
             await meetingMonster.models.delete(profile.id);
-            await this.refreshModels();
+            const profiles = await this.refreshModels();
+            this.onActiveModelChanged?.(profiles.find((item) => item.active) || null);
             modelStatus.textContent = '模型已删除';
         } catch (error) {
             modelStatus.textContent = `无法删除模型：${error.message || '请重试'}`;

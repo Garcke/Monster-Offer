@@ -8,6 +8,11 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const overlayHtmlPath = path.join(projectRoot, 'desktop', 'renderer', 'overlay.html');
 const controllerPath = path.join(projectRoot, 'desktop', 'renderer', 'model-settings.js');
 
+async function loadModelSettingsController() {
+    const source = fs.readFileSync(controllerPath, 'utf8');
+    return import(`data:text/javascript,${encodeURIComponent(source)}`);
+}
+
 test('model settings renderer exposes fixed controls and keeps connection secrets transient', () => {
     const html = fs.readFileSync(overlayHtmlPath, 'utf8');
     const source = fs.existsSync(controllerPath) ? fs.readFileSync(controllerPath, 'utf8') : '';
@@ -31,4 +36,49 @@ test('model settings renderer exposes fixed controls and keeps connection secret
     assert.match(source, /meetingMonster\.models\.delete/);
     assert.match(source, /meetingMonster\.models\.test/);
     assert.match(source, /finally\s*\{[\s\S]*apiKeyInput\.value\s*=\s*['"][^'"]*['"]/);
+});
+
+function createElement() {
+    return {
+        children: [],
+        textContent: '',
+        className: '',
+        type: '',
+        append(...nodes) { this.children.push(...nodes); },
+        appendChild(node) { this.children.push(node); },
+        addEventListener() {},
+        replaceChildren(...nodes) { this.children = nodes; },
+    };
+}
+
+test('deleting the active profile refreshes the active-model callback', async () => {
+    const {ModelSettingsController} = await loadModelSettingsController();
+    const deletedProfile = {id: 'old', label: 'Old', active: true};
+    const activeProfile = {
+        id: 'new', label: 'Current', protocol: 'openai', base_url: 'https://example.test', model: 'gpt',
+        api_key_required: true, max_tokens: 100, temperature: 0.2, active: true,
+    };
+    const updates = [];
+    const originalWindow = globalThis.window;
+    const originalDocument = globalThis.document;
+    globalThis.window = {confirm: () => true};
+    globalThis.document = {createElement};
+    try {
+        const controller = new ModelSettingsController({
+            api: {
+                models: {
+                    delete: async (id) => assert.equal(id, 'old'),
+                    list: async () => ({active_profile: 'new', profiles: [activeProfile]}),
+                },
+            },
+            elements: {modelList: createElement(), modelStatus: createElement()},
+            onActiveModelChanged: (profile) => updates.push(profile),
+        });
+
+        await controller.deleteProfile(deletedProfile);
+        assert.deepEqual(updates, [activeProfile]);
+    } finally {
+        globalThis.window = originalWindow;
+        globalThis.document = originalDocument;
+    }
 });
