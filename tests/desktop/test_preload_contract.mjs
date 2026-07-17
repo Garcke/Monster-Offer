@@ -9,7 +9,12 @@ const read = (...parts) => fs.readFileSync(path.join(projectRoot, ...parts), 'ut
 
 test('preload exports one fixed nested Meeting Monster API', () => {
     const source = read('desktop', 'src', 'preload', 'index.ts');
+    const exposedNamespaces = [...source.matchAll(
+        /\bcontextBridge\.exposeInMainWorld\s*\(\s*'([^']+)'/g,
+    )].map((match) => match[1]);
 
+    assert.equal(exposedNamespaces.length, 1);
+    assert.deepEqual(exposedNamespaces, ['meetingMonster']);
     assert.match(source, /contextBridge\.exposeInMainWorld\('meetingMonster', meetingMonster\)/);
     assert.match(source, /window:\s*\{/);
     assert.match(source, /privacy:\s*\{/);

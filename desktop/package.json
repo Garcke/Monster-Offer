@@ -9,11 +9,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "npm run build && electron .",
     "check": "npm run typecheck",
+    "desktop-test": "npm run build && node --test ../tests/desktop/*.mjs",
     "dist": "npm run dist:win",
-    "dist:win": "electron-builder --win nsis portable",
-    "dist:win:unsigned": "electron-builder --win nsis portable -c.win.signAndEditExecutable=false -c.forceCodeSigning=false",
-    "dist:mac": "electron-builder --mac dmg zip --universal",
-    "dist:mac:unsigned": "electron-builder --mac dmg zip --universal -c.mac.identity=null -c.mac.hardenedRuntime=false -c.mac.notarize=false -c.forceCodeSigning=false"
+    "dist:win": "npm run build && electron-builder --win nsis portable",
+    "dist:win:unsigned": "npm run build && electron-builder --win nsis portable -c.win.signAndEditExecutable=false -c.forceCodeSigning=false",
+    "dist:mac": "npm run build && electron-builder --mac dmg zip --universal",
+    "dist:mac:unsigned": "npm run build && electron-builder --mac dmg zip --universal -c.mac.identity=null -c.mac.hardenedRuntime=false -c.mac.notarize=false -c.forceCodeSigning=false"
   },
   "devDependencies": {
     "@types/node": "22.20.1",
