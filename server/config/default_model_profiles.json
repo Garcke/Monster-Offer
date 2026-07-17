@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "active_profile": "generic_openai",
+  "profiles": {
+    "openrouter": {
+      "label": "OpenRouter",
+      "protocol": "openai",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "anthropic/claude-sonnet-4.6",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "api_key_required": true,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "generic_openai": {
+      "label": "Generic OpenAI Compatible",
+      "protocol": "openai",
+      "base_url": "http://127.0.0.1:8000/v1",
+      "model": "local-model",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "api_key_required": false,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "generic_anthropic": {
+      "label": "Generic Anthropic Compatible",
+      "protocol": "anthropic",
+      "base_url": "http://127.0.0.1:8001",
+      "model": "anthropic-compatible-model",
+      "api_key_env": "ANTHROPIC_COMPATIBLE_API_KEY",
+      "api_key_required": false,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "zai_glm": {
+      "label": "Z.AI / GLM",
+      "protocol": "openai",
+      "base_url": "https://api.z.ai/api/paas/v4",
+      "model": "glm-5.2",
+      "api_key_env": "GLM_API_KEY",
+      "api_key_required": true,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "kimi_moonshot": {
+      "label": "Kimi / Moonshot",
+      "protocol": "openai",
+      "base_url": "https://api.moonshot.ai/v1",
+      "model": "kimi-k2.6",
+      "api_key_env": "KIMI_API_KEY",
+      "api_key_required": true,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "minimax_global": {
+      "label": "MiniMax Global",
+      "protocol": "anthropic",
+      "base_url": "https://api.minimax.io/anthropic",
+      "model": "MiniMax-M3",
+      "api_key_env": "MINIMAX_API_KEY",
+      "api_key_required": true,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "minimax_china": {
+      "label": "MiniMax 中国",
+      "protocol": "anthropic",
+      "base_url": "https://api.minimaxi.com/anthropic",
+      "model": "MiniMax-M3",
+      "api_key_env": "MINIMAX_CN_API_KEY",
+      "api_key_required": true,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "kilocode": {
+      "label": "Kilo Code",
+      "protocol": "openai",
+      "base_url": "https://api.kilo.ai/api/gateway",
+      "model": "anthropic/claude-sonnet-4.6",
+      "api_key_env": "KILOCODE_API_KEY",
+      "api_key_required": true,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "anthropic": {
+      "label": "Anthropic",
+      "protocol": "anthropic",
+      "base_url": "https://api.anthropic.com",
+      "model": "claude-sonnet-4-6",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "api_key_required": true,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "vercel_ai_gateway": {
+      "label": "Vercel AI Gateway",
+      "protocol": "openai",
+      "base_url": "https://ai-gateway.vercel.sh/v1",
+      "model": "anthropic/claude-sonnet-4.6",
+      "api_key_env": "AI_GATEWAY_API_KEY",
+      "api_key_required": true,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "opencode_zen_openai": {
+      "label": "OpenCode Zen（OpenAI）",
+      "protocol": "openai",
+      "base_url": "https://opencode.ai/zen/v1",
+      "model": "deepseek-v4-flash",
+      "api_key_env": "OPENCODE_ZEN_API_KEY",
+      "api_key_required": true,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "opencode_zen_anthropic": {
+      "label": "OpenCode Zen（Anthropic）",
+      "protocol": "anthropic",
+      "base_url": "https://opencode.ai/zen",
+      "model": "qwen3.7-plus",
+      "api_key_env": "OPENCODE_ZEN_API_KEY",
+      "api_key_required": true,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    },
+    "opencode_go": {
+      "label": "OpenCode Go",
+      "protocol": "openai",
+      "base_url": "https://opencode.ai/zen/go/v1",
+      "model": "deepseek-v4-flash",
+      "api_key_env": "OPENCODE_GO_API_KEY",
+      "api_key_required": true,
+      "max_tokens": 4096,
+      "temperature": 0.3
+    }
+  }
+}

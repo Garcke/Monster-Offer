@@ -3,30 +3,37 @@
   "version": "2.2.1",
   "private": true,
   "description": "Meeting-Monster Windows privacy desktop shell",
-  "main": "main.js",
+  "main": "dist/main/main.js",
   "scripts": {
-    "start": "electron .",
-    "check": "node --check main.js && node --check preload.js && node --check privacy_manager.js",
-    "dist": "npm run dist:win",
-    "dist:win": "electron-builder --win nsis portable",
-    "dist:win:unsigned": "electron-builder --win nsis portable -c.win.signAndEditExecutable=false -c.forceCodeSigning=false",
-    "dist:mac": "electron-builder --mac dmg zip --universal",
-    "dist:mac:unsigned": "electron-builder --mac dmg zip --universal -c.mac.identity=null -c.mac.hardenedRuntime=false -c.mac.notarize=false -c.forceCodeSigning=false"
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "npm run build && electron .",
+    "check": "npm run typecheck",
+    "desktop-test": "npm run build && node --test ../tests/desktop/*.mjs",
+    "audit:package": "node ../tests/desktop/audit_packaged_artifact.mjs",
+    "dist": "npm run build && electron-builder --win nsis portable",
+    "dist:win": "npm run build && electron-builder --win nsis portable",
+    "dist:win:unsigned": "npm run build && electron-builder --win nsis portable -c.win.signAndEditExecutable=false -c.forceCodeSigning=false",
+    "dist:mac": "npm run build && electron-builder --mac dmg zip --universal",
+    "dist:mac:unsigned": "npm run build && electron-builder --mac dmg zip --universal -c.mac.identity=null -c.mac.hardenedRuntime=false -c.mac.notarize=false -c.forceCodeSigning=false"
   },
   "devDependencies": {
+    "@electron/asar": "3.2.18",
+    "@types/node": "22.20.1",
     "electron": "37.2.6",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "typescript": "5.9.3"
   },
   "build": {
     "appId": "com.garcke.meetingmonster",
     "productName": "Meeting-Monster",
     "directories": {
-      "output": "dist"
+      "output": "release"
     },
     "files": [
-      "**/*",
-      "!debug.log",
-      "!dist{,/**/*}"
+      "dist/**/*",
+      "renderer/**/*",
+      "package.json"
     ],
     "win": {
       "signAndEditExecutable": true,

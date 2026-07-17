@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <title>Meeting-Monster Overlay</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="overlay.css?v=cluely-overlay-20260716">
+</head>
+<body>
+<div id="overlayRoot" class="overlay-root is-capsule">
+    <header class="overlay-header">
+        <div class="overlay-drag-region">
+            <img class="overlay-logo" src="favicon.png" alt="">
+            <div class="overlay-live-state">
+                <span id="overlayLiveDot" class="overlay-live-dot" aria-hidden="true"></span>
+                <span id="overlayStatusText">就绪</span>
+            </div>
+        </div>
+        <div class="overlay-actions">
+            <button id="capsuleProtectionToggle" class="overlay-button protection-button" type="button" aria-pressed="true" aria-label="关闭窗口保护">保护中</button>
+            <button id="overlaySettingsButton" class="overlay-button settings-button" type="button" aria-label="打开模型设置" aria-expanded="false">设置</button>
+            <button id="floatingExpandButton" class="overlay-button expand-button" type="button" aria-label="展开工作台" aria-expanded="false">展开 <span aria-hidden="true">⌄</span></button>
+            <button id="floatingHideButton" class="overlay-button hide-button" type="button" aria-label="隐藏悬浮窗">■</button>
+        </div>
+    </header>
+
+    <aside id="overlaySettingsDrawer" class="settings-drawer" hidden aria-label="连接和模型设置">
+        <div class="settings-drawer-header">
+            <div>
+                <span class="settings-kicker">REMOTE SERVICES</span>
+                <h2>连接与模型</h2>
+            </div>
+            <button id="overlaySettingsClose" class="settings-close" type="button" aria-label="关闭设置">×</button>
+        </div>
+        <div class="settings-scroll">
+            <section class="settings-section" aria-labelledby="connectionTitle">
+                <h3 id="connectionTitle">Python 服务</h3>
+                <p class="settings-disclosure">音频将发送到已配置的 Python 服务进行实时转写；窗口保护不会加密网络音频。</p>
+                <label>服务地址<input id="serverBaseUrl" type="url" inputmode="url" autocomplete="off" placeholder="例如：本机服务地址"></label>
+                <label>管理员令牌<input id="serverAdminToken" type="password" autocomplete="off" placeholder="仅用于本次操作"></label>
+                <div class="settings-actions">
+                    <button id="serverSaveButton" class="settings-primary" type="button">保存连接</button>
+                    <button id="serverTestButton" type="button">测试连接</button>
+                    <button id="serverClearButton" type="button">清除连接</button>
+                </div>
+                <p id="serverStatus" class="settings-status" role="status"></p>
+            </section>
+
+            <section class="settings-section" aria-labelledby="modelsTitle">
+                <div class="settings-section-title">
+                    <h3 id="modelsTitle">模型配置</h3>
+                    <button id="modelNewButton" type="button">新建模型</button>
+                </div>
+                <div id="modelList" class="model-list" aria-live="polite"></div>
+                <form id="modelForm" class="model-form">
+                    <input id="modelProfileId" type="text" autocomplete="off" aria-label="模型配置 ID" readonly>
+                    <label>名称<input id="modelLabel" type="text" autocomplete="off" required></label>
+                    <label>协议<select id="modelProtocol"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></label>
+                    <label>接口地址<input id="modelBaseUrl" type="url" inputmode="url" autocomplete="off" required></label>
+                    <label>模型名称<input id="modelName" type="text" autocomplete="off" required></label>
+                    <label>API 密钥<input id="modelApiKey" type="password" autocomplete="off" placeholder="留空则保留已存密钥"></label>
+                    <label class="settings-check"><input id="modelApiKeyRequired" type="checkbox" checked>需要 API 密钥</label>
+                    <div class="settings-grid">
+                        <label>最大 Token<input id="modelMaxTokens" type="number" min="1" step="1" required></label>
+                        <label>温度<input id="modelTemperature" type="number" min="0" max="2" step="0.1"></label>
+                    </div>
+                    <div class="settings-actions">
+                        <button id="modelSaveButton" class="settings-primary" type="submit">保存模型</button>
+                        <button id="modelTestButton" type="button">测试模型</button>
+                        <button id="modelCancelButton" type="button">取消</button>
+                    </div>
+                    <p id="modelStatus" class="settings-status" role="status"></p>
+                </form>
+            </section>
+        </div>
+    </aside>
+
+    <main id="overlayPanel" class="overlay-panel" aria-live="polite">
+        <section class="overlay-conversation">
+            <div class="overlay-question-prompt"><span class="prompt-icon" aria-hidden="true">✦</span><span id="overlayPromptLabel">What should I say?</span></div>
+            <div id="overlayTranscript" class="overlay-transcript"><div class="overlay-empty-state">开始转写后，当前问题会显示在这里</div></div>
+            <nav class="overlay-tool-row" aria-label="回答操作">
+                <button id="overlayAssistButton" class="overlay-tool-button is-active" type="button">✦ Assist</button>
+                <button id="overlayFollowupButton" class="overlay-tool-button" type="button" disabled>⌁ 追问</button>
+                <button id="overlayRecapButton" class="overlay-tool-button" type="button" disabled>↻ 重述</button>
+                <span id="overlayQuestionCount" class="overlay-count">0 条</span>
+            </nav>
+        </section>
+        <section class="overlay-answer-section">
+            <div class="overlay-answer-heading">
+                <span class="answer-kicker">AI REPLY</span>
+                <button id="overlayActiveModel" class="active-model-control" type="button" aria-label="打开当前模型设置">未选择模型</button>
+                <span id="overlayAnswerStatus" class="answer-status">等待问题</span>
+            </div>
+            <div id="overlayAnswer" class="overlay-answer"><div class="overlay-answer-empty">选择一个问题后，点击 Assist 生成回答</div></div>
+        </section>
+        <form id="overlayComposer" class="overlay-composer">
+            <textarea id="overlayInput" rows="1" placeholder="输入问题后发送" aria-label="输入面试问题"></textarea>
+            <div class="overlay-composer-footer">
+                <div class="overlay-composer-actions">
+                    <button id="overlayStartButton" class="overlay-small-button start-button" type="button"><span class="record-dot" aria-hidden="true"></span>开始转写</button>
+                    <button id="overlayStopButton" class="overlay-small-button stop-button" type="button" disabled>停止</button>
+                    <button id="overlayClearButton" class="overlay-small-button quiet-button" type="button">清空</button>
+                </div>
+                <div class="overlay-submit-actions"><span class="keyboard-hint">Ctrl + Enter</span><button id="overlayCopyButton" class="overlay-small-button quiet-button" type="button" disabled>复制</button><button id="overlayAnswerButton" class="overlay-submit-button" type="submit" aria-label="发送问题">➜</button></div>
+            </div>
+        </form>
+    </main>
+</div>
+<script type="module" src="overlay.js?v=cluely-overlay-20260716"></script>
+</body>
+</html>
