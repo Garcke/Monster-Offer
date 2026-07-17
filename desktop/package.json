@@ -55,6 +55,7 @@
     },
     "mac": {
       "category": "public.app-category.productivity",
+      "artifactName": "Meeting-Monster-Mac-Universal-${version}.${ext}",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "notarize": true,
@@ -68,12 +69,6 @@
           "arch": ["universal"]
         }
       ]
-    },
-    "dmg": {
-      "artifactName": "Meeting-Monster-Mac-Universal-${version}.${ext}"
-    },
-    "zip": {
-      "artifactName": "Meeting-Monster-Mac-Universal-${version}.${ext}"
     }
   }
 }
