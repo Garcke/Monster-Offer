@@ -69,12 +69,29 @@ export class DesktopSettingsStore {
     }
 
     public async loadConnection(): Promise<DesktopConnection | undefined> {
+        let persisted: PersistedSettings | undefined;
         try {
-            const persisted = await this.readPersistedSettings();
-            if (!persisted) return undefined;
-            if (!this.options.safeStorage.isEncryptionAvailable()) {
-                throw new SettingsStorageError('Desktop connection encryption is unavailable');
+            persisted = await this.readPersistedSettings();
+        } catch (error) {
+            if (error instanceof SettingsStorageError) {
+                throw new Error(error.message);
             }
+            await this.clearConnection();
+            throw new Error('Stored desktop connection could not be decrypted');
+        }
+        if (!persisted) return undefined;
+
+        let encryptionAvailable: boolean;
+        try {
+            encryptionAvailable = this.options.safeStorage.isEncryptionAvailable();
+        } catch {
+            throw new SettingsStorageError('Unable to check desktop connection encryption availability');
+        }
+        if (!encryptionAvailable) {
+            throw new SettingsStorageError('Desktop connection encryption is unavailable');
+        }
+
+        try {
             const plaintext = this.options.safeStorage.decryptString(Buffer.from(persisted.encryptedConnection, 'base64'));
             const parsed: unknown = JSON.parse(plaintext);
             if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new SettingsCorruptionError();
@@ -83,10 +100,7 @@ export class DesktopSettingsStore {
                 throw new SettingsCorruptionError();
             }
             return {baseUrl: validateBackendUrl(candidate.baseUrl, this.options.production).href, adminToken: candidate.adminToken.trim()};
-        } catch (error) {
-            if (error instanceof SettingsStorageError) {
-                throw new Error(error.message);
-            }
+        } catch {
             await this.clearConnection();
             throw new Error('Stored desktop connection could not be decrypted');
         }

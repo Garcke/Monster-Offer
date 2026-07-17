@@ -147,3 +147,29 @@ test('valid encrypted settings survive unavailable encryption and read failures'
     assert.deepEqual(fs.readFileSync(temporary.file), original);
     fs.rmSync(temporary.directory, {recursive: true, force: true});
 });
+
+test('valid encrypted settings survive safeStorage availability errors', async () => {
+    const {DesktopSettingsStore} = await loadSettingsModule();
+    const temporary = temporarySettingsPath();
+    const writer = new DesktopSettingsStore({
+        safeStorage: fakeSafeStorage(), settingsPath: temporary.file, production: true,
+    });
+    await writer.saveConnection({baseUrl: 'https://api.example.com', adminToken: 'desktop-admin-token'});
+    const original = fs.readFileSync(temporary.file);
+
+    const availabilityFailure = new DesktopSettingsStore({
+        safeStorage: {
+            ...fakeSafeStorage(),
+            isEncryptionAvailable: () => { throw new Error('temporary safeStorage failure'); },
+        },
+        settingsPath: temporary.file,
+        production: true,
+    });
+
+    assert.deepEqual(await availabilityFailure.loadStatus(), {configured: false, baseUrl: null});
+    assert.deepEqual(fs.readFileSync(temporary.file), original);
+    fs.writeFileSync(temporary.file, original);
+    await assert.rejects(availabilityFailure.loadConnection(), /encryption|storage/i);
+    assert.deepEqual(fs.readFileSync(temporary.file), original);
+    fs.rmSync(temporary.directory, {recursive: true, force: true});
+});
