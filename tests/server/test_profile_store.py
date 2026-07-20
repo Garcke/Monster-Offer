@@ -140,6 +140,44 @@ class ProfileStoreTests(unittest.TestCase):
         self.assertIsNone(payload["profiles"]["generic_openai"]["encrypted_api_key"])
         self.assertIn("generic_openai", [profile.id for profile in profiles])
 
+    def test_existing_store_is_migrated_with_missing_builtin_profiles(self):
+        self.path.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "active_profile": "generic_openai",
+                    "profiles": {
+                        "generic_openai": {
+                            "label": "Legacy OpenAI",
+                            "protocol": "openai",
+                            "base_url": "http://127.0.0.1:8000/v1",
+                            "model": "legacy-model",
+                            "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+                            "api_key_required": False,
+                            "encrypted_api_key": None,
+                            "max_tokens": 2048,
+                            "temperature": 0.2,
+                            "top_p": None,
+                            "extra_headers": {},
+                            "extra_body": {},
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        store = self.make_store()
+
+        profiles = store.list_profiles()
+
+        profile_ids = {profile.id for profile in profiles}
+        self.assertIn("openrouter", profile_ids)
+        self.assertIn("anthropic", profile_ids)
+        self.assertIn("opencode_zen_anthropic", profile_ids)
+        self.assertEqual(next(profile for profile in profiles if profile.id == "generic_openai").label, "Legacy OpenAI")
+        payload = json.loads(self.path.read_text(encoding="utf-8"))
+        self.assertEqual(payload["active_profile"], "generic_openai")
+
     def test_environment_cipher_requires_a_valid_explicit_fernet_key(self):
         from server.settings.model_profiles import ModelConfigurationError
         from server.settings.profile_store import SecretCipher

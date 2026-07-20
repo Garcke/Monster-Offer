@@ -19,6 +19,8 @@ from .model_profiles import (
     ResolvedModelProfile,
 )
 
+BUILTIN_PROFILES_VERSION = 1
+
 
 class ModelProfileInput(BaseModel):
     """Profile fields accepted from local profile management callers."""
@@ -203,7 +205,7 @@ class ProfileStore:
 
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
-            return ModelSettings.model_validate(payload)
+            return self._merge_builtin_profiles(ModelSettings.model_validate(payload))
         except (json.JSONDecodeError, ValueError) as exc:
             self._backup_corrupt_file()
             settings = self._default_settings()
@@ -215,11 +217,41 @@ class ProfileStore:
     def _default_settings(self) -> ModelSettings:
         try:
             payload = json.loads(DEFAULT_SETTINGS_PATH.read_text(encoding="utf-8"))
-            return ModelSettings.model_validate(payload)
+            return ModelSettings.model_validate(payload).model_copy(
+                update={"builtin_profiles_version": BUILTIN_PROFILES_VERSION}
+            )
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             raise ModelConfigurationError(
                 f"Unable to load default model profiles {DEFAULT_SETTINGS_PATH}: {exc}"
             ) from exc
+
+    def _merge_builtin_profiles(self, settings: ModelSettings) -> ModelSettings:
+        defaults = self._default_settings()
+        migration_pending = settings.builtin_profiles_version < BUILTIN_PROFILES_VERSION
+        missing_profiles = (
+            {
+                profile_id: profile
+                for profile_id, profile in defaults.profiles.items()
+                if profile_id not in settings.profiles
+            }
+            if migration_pending
+            else {}
+        )
+        active_profile = settings.active_profile if settings.active_profile in settings.profiles else defaults.active_profile
+        if (
+            settings.builtin_profiles_version >= BUILTIN_PROFILES_VERSION
+            and not missing_profiles
+            and active_profile == settings.active_profile
+        ):
+            return settings
+        merged = ModelSettings(
+            version=max(settings.version, defaults.version),
+            builtin_profiles_version=BUILTIN_PROFILES_VERSION,
+            active_profile=active_profile,
+            profiles={**missing_profiles, **settings.profiles},
+        )
+        self._persist(merged)
+        return merged
 
     def _stored_profile(
         self,

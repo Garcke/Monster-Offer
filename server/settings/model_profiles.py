@@ -59,6 +59,7 @@ class ModelSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     version: int = Field(default=1, ge=1)
+    builtin_profiles_version: int = Field(default=0, ge=0)
     active_profile: str = Field(min_length=1)
     profiles: dict[str, ModelProfile] = Field(min_length=1)
 

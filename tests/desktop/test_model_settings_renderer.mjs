@@ -7,10 +7,13 @@ import {fileURLToPath} from 'node:url';
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const overlayHtmlPath = path.join(projectRoot, 'desktop', 'renderer', 'overlay.html');
 const controllerPath = path.join(projectRoot, 'desktop', 'renderer', 'model-settings.js');
+const catalogPath = path.join(projectRoot, 'desktop', 'renderer', 'model-catalog.js');
 
 async function loadModelSettingsController() {
     const source = fs.readFileSync(controllerPath, 'utf8');
-    return import(`data:text/javascript,${encodeURIComponent(source)}`);
+    const catalog = fs.readFileSync(catalogPath, 'utf8');
+    const combined = `${catalog}\n${source.replace("import {BUILT_IN_MODEL_PROFILES} from './model-catalog.js';", '')}`;
+    return import(`data:text/javascript,${encodeURIComponent(combined)}`);
 }
 
 test('model settings renderer exposes selectable vendors and saved connection controls', () => {
@@ -18,7 +21,7 @@ test('model settings renderer exposes selectable vendors and saved connection co
     const source = fs.existsSync(controllerPath) ? fs.readFileSync(controllerPath, 'utf8') : '';
     const requiredIds = [
         'overlaySettingsButton', 'overlayActiveModel', 'overlaySettingsDrawer', 'overlaySettingsClose',
-        'modelList', 'modelForm', 'modelProtocol', 'modelApiKey', 'modelMaxTokens', 'modelTemperature',
+        'modelList', 'modelForm', 'modelApiKey', 'modelMaxTokens', 'modelTemperature',
         'modelTestButton', 'modelSaveButton', 'modelStatus',
     ];
 
@@ -27,16 +30,31 @@ test('model settings renderer exposes selectable vendors and saved connection co
         assert.doesNotMatch(html, new RegExp(`id="${id}"`));
     }
     assert.match(source, /export class ModelSettingsController/);
-    assert.doesNotMatch(html, /id="modelProtocol"[^>]*disabled/);
+    assert.doesNotMatch(html, /id="modelProtocol"/);
     assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|document\.cookie/);
     assert.doesNotMatch(source, /\bfetch\s*\(|\bWebSocket\b/);
-    assert.match(source, /this\.api\.models\.list/);
+    assert.match(source, /BUILT_IN_MODEL_PROFILES/);
+    assert.match(source, /this\.api\.models\.getSaved/);
+    assert.doesNotMatch(source, /this\.api\.models\.list/);
     assert.match(source, /this\.api\.models\.test/);
     assert.match(source, /this\.api\.models\.save/);
-    assert.match(source, /modelProtocol.*change|addEventListener\(['"]change['"]/s);
+    assert.doesNotMatch(source, /modelProtocol/);
     assert.match(source, /profile_id/);
     assert.doesNotMatch(source, /meetingMonster\.models\.(create|update|delete|activate)/);
     assert.match(source, /profile_id/);
+});
+
+test('bundled model catalog contains every README built-in profile', async () => {
+    const source = fs.readFileSync(catalogPath, 'utf8');
+    assert.match(source, /export const BUILT_IN_MODEL_PROFILES/);
+    const {BUILT_IN_MODEL_PROFILES} = await import(`data:text/javascript,${encodeURIComponent(source)}`);
+    const ids = BUILT_IN_MODEL_PROFILES.map((profile) => profile.id);
+    assert.deepEqual(ids, [
+        'openrouter', 'generic_openai', 'generic_anthropic', 'zai_glm', 'kimi_moonshot',
+        'minimax_global', 'minimax_china', 'kilocode', 'anthropic', 'vercel_ai_gateway',
+        'opencode_zen_openai', 'opencode_zen_anthropic', 'opencode_go',
+    ]);
+    assert.ok(BUILT_IN_MODEL_PROFILES.every((profile) => profile.label && profile.model));
 });
 
 function createElement() {
@@ -66,7 +84,7 @@ test('selecting a backend profile refreshes the active-model callback', async ()
     try {
         const controller = new ModelSettingsController({
             api: {
-                models: {list: async () => ({active_profile: 'new', profiles: [activeProfile]})},
+                models: {getSaved: async () => null},
             },
             elements: {modelList: createElement(), modelStatus: createElement()},
             onActiveModelChanged: (profile) => updates.push(profile),
@@ -88,7 +106,6 @@ test('saving a selected model persists the current vendor and advanced fields', 
     };
     const elements = {
         modelList: createElement(), modelStatus: createElement(), modelForm: createElement(),
-        modelProtocol: {value: 'anthropic', addEventListener() {}},
         modelApiKey: {value: 'temporary-key'}, modelMaxTokens: {value: '2048'},
         modelTemperature: {value: '0.4'}, modelSaveButton: {addEventListener() {}},
         modelTestButton: {addEventListener() {}},
@@ -97,7 +114,7 @@ test('saving a selected model persists the current vendor and advanced fields', 
     const controller = new ModelSettingsController({
         api: {
             models: {
-                list: async () => ({active_profile: activeProfile.id, profiles: [activeProfile]}),
+                getSaved: async () => null,
                 save: async (selection) => { saved.push(selection); return {profile_id: selection.profile_id}; },
             },
         },
@@ -105,6 +122,7 @@ test('saving a selected model persists the current vendor and advanced fields', 
     });
 
     await controller.refreshModels();
+    await controller.selectProfile(activeProfile);
     elements.modelApiKey.value = 'temporary-key';
     elements.modelMaxTokens.value = '2048';
     elements.modelTemperature.value = '0.4';

@@ -58,9 +58,10 @@
       "artifactName": "Meeting-Monster-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
+      "createDesktopShortcut": false,
       "createStartMenuShortcut": true,
       "shortcutName": "Meeting-Monster",
+      "include": "build/installer.nsh",
       "installerIcon": "renderer/favicon.ico",
       "uninstallerIcon": "renderer/favicon.ico",
       "installerHeaderIcon": "renderer/favicon.ico"

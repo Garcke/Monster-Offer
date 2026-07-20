@@ -1,13 +1,4 @@
-const FALLBACK_PROFILES = [
-    {
-        id: 'generic_openai', label: 'OpenAI', protocol: 'openai', model: '后端默认模型',
-        api_key_required: false, has_api_key: false, max_tokens: 4096, temperature: 0.3, active: false,
-    },
-    {
-        id: 'generic_anthropic', label: 'Anthropic', protocol: 'anthropic', model: '后端默认模型',
-        api_key_required: false, has_api_key: false, max_tokens: 4096, temperature: 0.3, active: false,
-    },
-];
+import {BUILT_IN_MODEL_PROFILES} from './model-catalog.js';
 
 export class ModelSettingsController {
     constructor({api, elements, onActiveModelChanged}) {
@@ -20,62 +11,35 @@ export class ModelSettingsController {
     }
 
     bind() {
-        const {modelForm, modelProtocol, modelTestButton, modelSaveButton} = this.elements;
+        const {modelForm, modelTestButton, modelSaveButton} = this.elements;
         modelForm?.addEventListener('submit', (event) => event.preventDefault());
-        modelProtocol?.addEventListener('change', () => this.selectProtocol(modelProtocol.value));
         modelTestButton?.addEventListener('click', () => this.testProfile());
         modelSaveButton?.addEventListener('click', () => this.saveConnection());
     }
 
     async refreshModels() {
-        const {modelList, modelStatus} = this.elements;
+        const {modelStatus} = this.elements;
         const saved = this.api.models.getSaved
             ? await this.api.models.getSaved().catch(() => null)
             : null;
         this.savedConnection = saved;
-        try {
-            const result = await this.api.models.list();
-            const configuredProfiles = Array.isArray(result?.profiles) ? result.profiles : [];
-            this.profiles = configuredProfiles.length
-                ? configuredProfiles
-                : FALLBACK_PROFILES.map((profile) => ({...profile}));
-            const selected = this.#findSavedProfile(saved)
-                || this.profiles.find((profile) => profile.id === result.active_profile)
-                || this.profiles[0]
-                || null;
-            this.selectProfile(selected, {render: false});
-            this.renderModels();
-            if (modelStatus) modelStatus.textContent = saved?.has_api_key
-                ? '已加载保存的连接'
-                : (configuredProfiles.length ? '' : '后端尚未配置可用模型，当前显示本地厂商选项');
-            return this.profiles;
-        } catch (error) {
-            this.profiles = FALLBACK_PROFILES.map((profile) => ({...profile}));
-            const selected = this.#findSavedProfile(saved)
-                || this.profiles.find((profile) => profile.protocol === saved?.protocol)
-                || this.profiles[0];
-            this.selectProfile(selected, {render: false});
-            this.renderModels();
-            if (modelStatus) modelStatus.textContent = `Python 服务未连接，已显示本地厂商选项：${error.message || '请先启动 127.0.0.1:9000'}`;
-            return this.profiles;
-        }
-    }
-
-    selectProtocol(protocol) {
-        const profile = this.profiles.find((candidate) => candidate.protocol === protocol);
-        if (!profile) {
-            const {modelStatus} = this.elements;
-            if (modelStatus) modelStatus.textContent = `后端尚未配置 ${protocol === 'anthropic' ? 'Anthropic' : 'OpenAI'} 模型`;
-            return null;
-        }
-        return this.selectProfile(profile);
+        this.profiles = BUILT_IN_MODEL_PROFILES.map((profile) => ({...profile}));
+        const selected = this.#findSavedProfile(saved)
+            || this.profiles.find((profile) => profile.active)
+            || this.profiles[0]
+            || null;
+        this.selectProfile(selected, {render: false});
+        this.renderModels();
+        if (modelStatus) modelStatus.textContent = saved?.has_api_key
+            ? '已加载保存的连接'
+            : `已加载 ${this.profiles.length} 个内置模型`;
+        return this.profiles;
     }
 
     selectProfile(profile, {render = true} = {}) {
         if (!profile) return null;
         this.selectedProfile = profile;
-        const {modelProtocol, modelApiKey, modelMaxTokens, modelTemperature, modelStatus} = this.elements;
-        if (modelProtocol) modelProtocol.value = profile.protocol || 'openai';
+        const {modelApiKey, modelMaxTokens, modelTemperature, modelStatus} = this.elements;
         if (modelMaxTokens) modelMaxTokens.value = String(profile.max_tokens || 4096);
         if (modelTemperature) modelTemperature.value = profile.temperature == null ? '' : String(profile.temperature);
         if (modelApiKey) modelApiKey.value = '';
@@ -90,12 +54,12 @@ export class ModelSettingsController {
     }
 
     async saveConnection() {
-        const {modelStatus, modelProtocol} = this.elements;
+        const {modelStatus} = this.elements;
         try {
             const selection = this.#selectionFromForm();
             const saved = await this.api.models.save({
                 ...selection,
-                protocol: modelProtocol?.value || this.selectedProfile.protocol,
+                protocol: this.selectedProfile.protocol,
             });
             this.savedConnection = saved;
             if (modelStatus) modelStatus.textContent = '连接已保存到本机安全存储';
@@ -128,9 +92,7 @@ export class ModelSettingsController {
 
     #findSavedProfile(saved) {
         if (!saved) return null;
-        return this.profiles.find((profile) => profile.id === saved.profile_id)
-            || this.profiles.find((profile) => profile.protocol === saved.protocol)
-            || null;
+        return this.profiles.find((profile) => profile.id === saved.profile_id) || null;
     }
 
     #selectionFromForm() {
@@ -153,9 +115,9 @@ export class ModelSettingsController {
         row.className = `model-row${profile.id === this.selectedProfile?.id ? ' is-selected' : ''}`;
         const summary = document.createElement('div');
         const label = document.createElement('strong');
-        label.textContent = labelForProfile(profile);
+        label.textContent = profile.label;
         const detail = document.createElement('span');
-        detail.textContent = `${profile.protocol} · ${profile.model}${profile.active ? ' · 默认' : ''}`;
+        detail.textContent = `${profile.model}${profile.active ? ' · 默认' : ''}`;
         summary.append(label, detail);
         const actions = document.createElement('div');
         actions.className = 'model-row-actions';
@@ -171,9 +133,4 @@ export class ModelSettingsController {
         button.addEventListener('click', handler);
         return button;
     }
-}
-
-function labelForProfile(profile) {
-    if (profile.label && !profile.label.toLowerCase().includes('generic')) return profile.label;
-    return profile.protocol === 'anthropic' ? 'Anthropic' : 'OpenAI';
 }

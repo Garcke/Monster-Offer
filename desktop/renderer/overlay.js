@@ -317,9 +317,10 @@ const settingsController = new ModelSettingsController({
     api: meetingMonster,
     elements: {
         modelList: document.getElementById('modelList'), modelForm: document.getElementById('modelForm'),
-        modelProtocol: document.getElementById('modelProtocol'), modelApiKey: document.getElementById('modelApiKey'),
+        modelApiKey: document.getElementById('modelApiKey'),
         modelMaxTokens: document.getElementById('modelMaxTokens'), modelTemperature: document.getElementById('modelTemperature'),
-        modelTestButton: document.getElementById('modelTestButton'), modelStatus: document.getElementById('modelStatus'),
+        modelTestButton: document.getElementById('modelTestButton'), modelSaveButton: document.getElementById('modelSaveButton'),
+        modelStatus: document.getElementById('modelStatus'),
     },
     onActiveModelChanged: renderActiveModel,
 });

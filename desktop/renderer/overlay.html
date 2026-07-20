@@ -40,12 +40,11 @@
                 <div class="settings-section-title">
                     <div>
                         <h3 id="modelsTitle">模型选择</h3>
-                        <p class="settings-disclosure">模型地址和名称由 Python 后端配置；这里选择厂商、填写密钥，并保存当前连接。</p>
+                        <p class="settings-disclosure">内置模型随桌面端发布；这里选择厂商、填写密钥，并保存当前连接。实际测试与回答仍由 Python 服务处理。</p>
                     </div>
                 </div>
                 <div id="modelList" class="model-list" aria-live="polite"></div>
                 <form id="modelForm" class="model-form">
-                    <label>模型类型<select id="modelProtocol"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></label>
                     <label>API Key<input id="modelApiKey" type="password" autocomplete="off" placeholder="可选，保存到本机安全存储"></label>
                     <div class="settings-grid">
                         <label>最大 Token<input id="modelMaxTokens" type="number" min="1" step="1" required></label>

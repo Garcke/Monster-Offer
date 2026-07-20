@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const packagePath = path.join(projectRoot, 'desktop', 'package.json');
+const installerScriptPath = path.join(projectRoot, 'desktop', 'build', 'installer.nsh');
 const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
 
 test('electron-builder packages only the desktop runtime and explicit unsigned targets', () => {
@@ -20,8 +21,15 @@ test('electron-builder packages only the desktop runtime and explicit unsigned t
     assert.equal(pkg.build.extraResources, undefined);
     assert.equal(pkg.build.extraFiles, undefined);
     assert.match(pkg.build.nsis.artifactName, /Setup/);
-    assert.equal(pkg.build.nsis.createDesktopShortcut, true);
+    assert.equal(pkg.build.nsis.createDesktopShortcut, false);
     assert.equal(pkg.build.nsis.createStartMenuShortcut, true);
+    assert.equal(pkg.build.nsis.include, 'build/installer.nsh');
+    const installerScript = fs.readFileSync(installerScriptPath, 'utf8');
+    assert.match(installerScript, /CreateDesktopShortcutCheckbox/);
+    assert.match(installerScript, /创建桌面快捷方式/);
+    assert.match(installerScript, /customFinishPage/);
+    assert.match(installerScript, /CreateDesktopShortcutPageLeave/);
+    assert.match(installerScript, /CreateShortCut/);
     assert.equal(pkg.build.nsis.shortcutName, 'Meeting-Monster');
     assert.equal(pkg.build.nsis.installerIcon, 'renderer/favicon.ico');
     assert.equal(pkg.build.nsis.uninstallerIcon, 'renderer/favicon.ico');
