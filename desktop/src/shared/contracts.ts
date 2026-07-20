@@ -13,13 +13,7 @@ export const IPC_CHANNELS = {
         setCaptureProtection: 'privacy:set-capture-protection',
         status: 'privacy:status',
     },
-    settings: {
-        get: 'settings:get', set: 'settings:set', clear: 'settings:clear', test: 'settings:test-connection',
-    },
-    models: {
-        list: 'models:list', create: 'models:create', update: 'models:update', delete: 'models:delete',
-        activate: 'models:activate', test: 'models:test',
-    },
+    models: {list: 'models:list', test: 'models:test'},
     chat: {send: 'chat:send', cancel: 'chat:cancel', event: 'chat:event'},
     asr: {
         start: 'asr:start',
@@ -56,19 +50,34 @@ export interface PrivacyPolicy {
     taskbarHidden: false;
 }
 
-export interface DesktopSettingsStatus {
-    configured: boolean;
-    baseUrl: string | null;
+export interface SelectableModelProfile {
+    id: string;
+    label: string;
+    protocol: 'openai' | 'anthropic';
+    model: string;
+    api_key_required: boolean;
+    has_api_key: boolean;
+    max_tokens: number;
+    temperature: number | null;
+    active: boolean;
 }
 
-export interface DesktopConnectionInput {
-    baseUrl: string;
-    adminToken: string;
+export interface ModelOptions {
+    active_profile: string;
+    profiles: SelectableModelProfile[];
 }
 
-export interface ConnectionTestResult {
-    status: 'connected' | 'unauthorized' | 'unreachable';
-    adminAuthorized: boolean;
+export interface ModelSelectionInput {
+    profile_id: string;
+    api_key?: string;
+    max_tokens?: number;
+    temperature?: number | null;
+}
+
+export interface ModelTestResult {
+    ok: boolean;
+    latency_ms: number;
+    model: string;
 }
 
 export interface ChatStreamEvent {
@@ -106,22 +115,12 @@ export interface MeetingMonsterApi {
         setCaptureProtection(enabled: boolean): Promise<PrivacyStatus>;
         onStatus(callback: (status: PrivacyStatus) => void): Unsubscribe;
     };
-    settings: {
-        getStatus(): Promise<DesktopSettingsStatus>;
-        saveConnection(connection: DesktopConnectionInput): Promise<DesktopSettingsStatus>;
-        clearConnection(): Promise<DesktopSettingsStatus>;
-        testConnection(connection: DesktopConnectionInput): Promise<ConnectionTestResult>;
-    };
     models: {
-        list(): Promise<unknown>;
-        create(profile: Record<string, unknown>): Promise<unknown>;
-        update(profileId: string, profile: Record<string, unknown>): Promise<unknown>;
-        delete(profileId: string): Promise<void>;
-        activate(profileId: string): Promise<unknown>;
-        test(profile: Record<string, unknown>): Promise<unknown>;
+        list(): Promise<ModelOptions>;
+        test(selection: ModelSelectionInput): Promise<ModelTestResult>;
     };
     chat: {
-        send(requestId: string, content: string): Promise<{requestId: string}>;
+        send(requestId: string, content: string, selection?: ModelSelectionInput): Promise<{requestId: string}>;
         cancel(requestId: string): Promise<{cancelled: boolean}>;
         onEvent(callback: (event: ChatStreamEvent) => void): Unsubscribe;
     };

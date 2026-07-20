@@ -1,16 +1,18 @@
-import {app, BrowserWindow, globalShortcut, ipcMain, MessageChannelMain, safeStorage, type WebContents} from 'electron';
+import {app, BrowserWindow, globalShortcut, ipcMain, MessageChannelMain, type WebContents} from 'electron';
 import path from 'node:path';
-import {DesktopSettingsStore, validateBackendUrl, type DesktopConnection} from './desktop-settings';
 import {WindowPrivacyManager} from './privacy-manager';
-import {RemoteApiClient, validateModelProfileInput, type ChatStreamEvent, type ModelProfileInput} from './remote-api-client';
+import {
+    RemoteApiClient,
+    validateModelSelectionInput,
+    type ChatStreamEvent,
+    type ModelSelectionInput,
+} from './remote-api-client';
 import {RemoteAsrClient} from './remote-asr-client';
 import {AsrSessionCoordinator, type AsrSessionSender} from './asr-session-coordinator';
 import {
     IPC_CHANNELS,
     type AsrResultEvent,
     type AsrStatus,
-    type ConnectionTestResult,
-    type DesktopSettingsStatus,
     type PrivacyPolicy,
     type WindowMode,
     type WindowState,
@@ -18,10 +20,10 @@ import {
 
 const CAPSULE_BOUNDS = {width: 360, height: 56};
 const EXPANDED_BOUNDS = {width: 720, height: 520};
+const DEFAULT_BACKEND_URL = 'http://127.0.0.1:9000/';
 
 let mainWindow: BrowserWindow | null = null;
 let privacyManager: WindowPrivacyManager | null = null;
-let settingsStore: DesktopSettingsStore | null = null;
 let windowMode: WindowMode = 'capsule';
 let ipcHandlersRegistered = false;
 const activeChatRequests = new Map<string, {controller: AbortController; sender: WebContents}>();
@@ -40,11 +42,6 @@ function isAuthorizedWebContents(sender: WebContents): boolean {
 function getPrivacyManager(): WindowPrivacyManager {
     if (!privacyManager) throw new Error('Privacy manager is not ready');
     return privacyManager;
-}
-
-function getSettingsStore(): DesktopSettingsStore {
-    if (!settingsStore) throw new Error('Desktop settings are not ready');
-    return settingsStore;
 }
 
 function getLiveAsrOwner(): WebContents | null {
@@ -66,7 +63,6 @@ function sendAsrResult(event: AsrResultEvent): void {
 }
 
 function getRemoteAsrClient(): RemoteAsrClient {
-    getSettingsStore();
     if (remoteAsrClient) return remoteAsrClient;
     remoteAsrClient = new RemoteAsrClient({
         production: app.isPackaged,
@@ -99,11 +95,10 @@ function disposeAsr(): void {
 }
 
 function getAsrSessionCoordinator(): AsrSessionCoordinator {
-    getSettingsStore();
     if (asrSessionCoordinator) return asrSessionCoordinator;
     asrSessionCoordinator = new AsrSessionCoordinator({
         isAuthorizedSender: (sender) => isAuthorizedWebContents(sender as WebContents),
-        loadConnection: () => getSettingsStore().loadConnection(),
+        loadConnection: async () => ({baseUrl: DEFAULT_BACKEND_URL}),
         createPort: () => {
             const {port1, port2} = new MessageChannelMain();
             return {input: port1, output: port2};
@@ -116,19 +111,8 @@ function getAsrSessionCoordinator(): AsrSessionCoordinator {
     return asrSessionCoordinator;
 }
 
-async function getRemoteApiClient(connection?: DesktopConnection): Promise<RemoteApiClient> {
-    const configuredConnection = connection ?? await getSettingsStore().loadConnection();
-    if (!configuredConnection) throw new Error('Remote server is not configured');
-    return new RemoteApiClient({...configuredConnection, fetch});
-}
-
-function requireConnection(value: unknown): DesktopConnection {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Connection settings are invalid');
-    const candidate = value as Partial<DesktopConnection>;
-    if (typeof candidate.baseUrl !== 'string' || typeof candidate.adminToken !== 'string') {
-        throw new TypeError('Connection settings are invalid');
-    }
-    return {baseUrl: candidate.baseUrl, adminToken: candidate.adminToken};
+function getRemoteApiClient(): RemoteApiClient {
+    return new RemoteApiClient({baseUrl: DEFAULT_BACKEND_URL, fetch});
 }
 
 function requireText(value: unknown, label: string): string {
@@ -136,8 +120,8 @@ function requireText(value: unknown, label: string): string {
     return value.trim();
 }
 
-function requireProfile(value: unknown): ModelProfileInput {
-    return validateModelProfileInput(value);
+function requireModelSelection(value: unknown): ModelSelectionInput {
+    return validateModelSelectionInput(value);
 }
 
 function sendChatEvent(sender: WebContents, event: ChatStreamEvent): void {
@@ -185,7 +169,6 @@ function registerIpcHandlers(): void {
     const handledChannels = [
         ...Object.values(IPC_CHANNELS.window).filter((channel) => channel !== IPC_CHANNELS.window.state),
         ...Object.values(IPC_CHANNELS.privacy).filter((channel) => channel !== IPC_CHANNELS.privacy.status),
-        ...Object.values(IPC_CHANNELS.settings),
         ...Object.values(IPC_CHANNELS.models),
         ...Object.values(IPC_CHANNELS.chat).filter((channel) => channel !== IPC_CHANNELS.chat.event),
         ...Object.values(IPC_CHANNELS.asr).filter((channel) => (
@@ -237,53 +220,19 @@ function registerIpcHandlers(): void {
         mainWindow?.show();
         return getWindowState();
     });
-    ipcMain.handle(IPC_CHANNELS.settings.get, async (event): Promise<DesktopSettingsStatus> => {
-        if (!isAuthorizedSender(event)) throw new Error('Unauthorized settings request');
-        return getSettingsStore().loadStatus();
-    });
-    ipcMain.handle(IPC_CHANNELS.settings.set, async (event, value: unknown): Promise<DesktopSettingsStatus> => {
-        if (!isAuthorizedSender(event)) throw new Error('Unauthorized settings request');
-        return getSettingsStore().saveConnection(requireConnection(value));
-    });
-    ipcMain.handle(IPC_CHANNELS.settings.clear, async (event): Promise<DesktopSettingsStatus> => {
-        if (!isAuthorizedSender(event)) throw new Error('Unauthorized settings request');
-        await getSettingsStore().clearConnection();
-        return getSettingsStore().loadStatus();
-    });
-    ipcMain.handle(IPC_CHANNELS.settings.test, async (event, value: unknown): Promise<ConnectionTestResult> => {
-        if (!isAuthorizedSender(event)) throw new Error('Unauthorized settings request');
-        const connection = requireConnection(value);
-        const baseUrl = validateBackendUrl(connection.baseUrl, app.isPackaged).href;
-        return (await getRemoteApiClient({...connection, baseUrl})).testConnection();
-    });
     ipcMain.handle(IPC_CHANNELS.models.list, async (event) => {
         if (!isAuthorizedSender(event)) throw new Error('Unauthorized models request');
-        return (await getRemoteApiClient()).listModels();
+        return (await getRemoteApiClient()).listSelectableModels();
     });
-    ipcMain.handle(IPC_CHANNELS.models.create, async (event, profile: unknown) => {
+    ipcMain.handle(IPC_CHANNELS.models.test, async (event, selection: unknown) => {
         if (!isAuthorizedSender(event)) throw new Error('Unauthorized models request');
-        return (await getRemoteApiClient()).createModel(requireProfile(profile));
+        return (await getRemoteApiClient()).testSelectedModel(requireModelSelection(selection));
     });
-    ipcMain.handle(IPC_CHANNELS.models.update, async (event, profileId: unknown, profile: unknown) => {
-        if (!isAuthorizedSender(event)) throw new Error('Unauthorized models request');
-        return (await getRemoteApiClient()).updateModel(requireText(profileId, 'Model profile id'), requireProfile(profile));
-    });
-    ipcMain.handle(IPC_CHANNELS.models.delete, async (event, profileId: unknown) => {
-        if (!isAuthorizedSender(event)) throw new Error('Unauthorized models request');
-        return (await getRemoteApiClient()).deleteModel(requireText(profileId, 'Model profile id'));
-    });
-    ipcMain.handle(IPC_CHANNELS.models.activate, async (event, profileId: unknown) => {
-        if (!isAuthorizedSender(event)) throw new Error('Unauthorized models request');
-        return (await getRemoteApiClient()).activateModel(requireText(profileId, 'Model profile id'));
-    });
-    ipcMain.handle(IPC_CHANNELS.models.test, async (event, profile: unknown) => {
-        if (!isAuthorizedSender(event)) throw new Error('Unauthorized models request');
-        return (await getRemoteApiClient()).testModel(requireProfile(profile));
-    });
-    ipcMain.handle(IPC_CHANNELS.chat.send, async (event, requestId: unknown, content: unknown) => {
+    ipcMain.handle(IPC_CHANNELS.chat.send, async (event, requestId: unknown, content: unknown, selection?: unknown) => {
         if (!isAuthorizedSender(event)) throw new Error('Unauthorized chat request');
         const id = requireText(requestId, 'Chat request id');
         const question = requireText(content, 'Chat content');
+        const modelSelection = selection === undefined ? undefined : requireModelSelection(selection);
         activeChatRequests.get(id)?.controller.abort();
         const controller = new AbortController();
         const sender = event.sender;
@@ -291,7 +240,7 @@ function registerIpcHandlers(): void {
         void (async () => {
             try {
                 for await (const chatEvent of (await getRemoteApiClient()).streamChat({
-                    requestId: id, content: question, signal: controller.signal,
+                    requestId: id, content: question, modelSelection, signal: controller.signal,
                 })) {
                     if (activeChatRequests.get(id)?.controller !== controller) return;
                     sendChatEvent(sender, chatEvent);
@@ -384,11 +333,6 @@ function createMainWindow(): void {
 
 function startApplication(): void {
     privacyManager = new WindowPrivacyManager({onStatus: broadcastPrivacyStatus});
-    settingsStore = new DesktopSettingsStore({
-        safeStorage,
-        settingsPath: path.join(app.getPath('userData'), 'desktop-settings.json'),
-        production: app.isPackaged,
-    });
     registerIpcHandlers();
     createMainWindow();
 

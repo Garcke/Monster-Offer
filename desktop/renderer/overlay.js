@@ -43,6 +43,7 @@ let activeAction = 'assist';
 let isExpanded = false;
 let isRecording = false;
 let asrActive = false;
+let activeModelSelection;
 
 function setStatus(message, state = 'ready') {
     statusText.textContent = message;
@@ -160,7 +161,8 @@ async function sendQuestionToAI(questionId, action = activeAction) {
     renderTranscript();
     renderAnswer();
     try {
-        await meetingMonster.chat.send(requestId, buildPrompt(question.text, action));
+        activeModelSelection = settingsController.getSelection();
+        await meetingMonster.chat.send(requestId, buildPrompt(question.text, action), activeModelSelection);
     } catch (error) {
         if (!isCurrentChatRequest(activeChatRequestId, requestId)) return;
         questionStore.setAnswerStatus(question.id, 'error', error.message || '无法请求 AI 回复');
@@ -218,11 +220,6 @@ async function startRecording() {
     activePartialTranscript = '';
     renderTranscript();
     try {
-        const settings = await meetingMonster.settings.getStatus();
-        if (!settings.configured) {
-            openSettingsDrawer();
-            throw new Error('请先配置 Python 服务');
-        }
         const sampleRate = await recorder.prepare((chunk) => meetingMonster.asr.writePcm(chunk));
         await meetingMonster.asr.start(sampleRate);
         asrActive = true;
@@ -311,24 +308,18 @@ function closeSettingsDrawer() {
     settingsButton.focus();
 }
 
-function renderActiveModel(profile) {
+function renderActiveModel(profile, selection) {
     activeModelButton.textContent = profile?.label ? `当前：${profile.label}` : '未选择模型';
+    activeModelSelection = selection;
 }
 
 const settingsController = new ModelSettingsController({
     api: meetingMonster,
     elements: {
-        serverBaseUrl: document.getElementById('serverBaseUrl'), serverAdminToken: document.getElementById('serverAdminToken'),
-        serverSaveButton: document.getElementById('serverSaveButton'), serverTestButton: document.getElementById('serverTestButton'),
-        serverClearButton: document.getElementById('serverClearButton'), serverStatus: document.getElementById('serverStatus'),
         modelList: document.getElementById('modelList'), modelForm: document.getElementById('modelForm'),
-        modelProfileId: document.getElementById('modelProfileId'), modelLabel: document.getElementById('modelLabel'),
-        modelProtocol: document.getElementById('modelProtocol'), modelBaseUrl: document.getElementById('modelBaseUrl'),
-        modelName: document.getElementById('modelName'), modelApiKey: document.getElementById('modelApiKey'),
-        modelApiKeyRequired: document.getElementById('modelApiKeyRequired'), modelMaxTokens: document.getElementById('modelMaxTokens'),
-        modelTemperature: document.getElementById('modelTemperature'), modelSaveButton: document.getElementById('modelSaveButton'),
-        modelTestButton: document.getElementById('modelTestButton'), modelCancelButton: document.getElementById('modelCancelButton'),
-        modelNewButton: document.getElementById('modelNewButton'), modelStatus: document.getElementById('modelStatus'),
+        modelProtocol: document.getElementById('modelProtocol'), modelApiKey: document.getElementById('modelApiKey'),
+        modelMaxTokens: document.getElementById('modelMaxTokens'), modelTemperature: document.getElementById('modelTemperature'),
+        modelTestButton: document.getElementById('modelTestButton'), modelStatus: document.getElementById('modelStatus'),
     },
     onActiveModelChanged: renderActiveModel,
 });
@@ -439,7 +430,6 @@ meetingMonster.window.getState().then(renderWindowState).catch(() => renderWindo
 const unsubscribePrivacyStatus = meetingMonster.privacy.onStatus(renderProtectionStatus);
 meetingMonster.privacy.getStatus().then(renderProtectionStatus).catch(() => renderProtectionStatus({captureProtection: 'failed'}));
 settingsController.bind();
-settingsController.refreshConnection().catch(() => undefined);
-settingsController.refreshModels().then((profiles) => renderActiveModel(profiles.find((profile) => profile.active))).catch(() => undefined);
+settingsController.refreshModels().catch(() => undefined);
 renderTranscript();
 renderAnswer();

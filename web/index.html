@@ -1,3 +1,6 @@
+Exit code: 0
+Wall time: 0.3 seconds
+Output:
 <!DOCTYPE html>
 <html lang="zh-CN">
 
@@ -7,25 +10,13 @@
     <meta name="theme-color" content="#f5f7fb">
     <title>Meeting-Monster</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="styles.css?v=floating-capsule-20260716">
+    <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.bootcdn.net/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.6.0/styles/github-dark.min.css">
     <script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script>
 </head>
 
-<body class="floating-capsule">
-<div id="floatingCapsule" class="capsule-shell" role="toolbar" aria-label="Meeting-Monster 悬浮控制">
-    <div class="capsule-drag-region">
-        <img class="capsule-logo" src="favicon.png" alt="">
-                <span class="capsule-live-dot" aria-hidden="true"></span>
-        <span class="capsule-live-label">就绪</span>
-    </div>
-    <div class="capsule-controls">
-        <button id="capsuleProtectionToggle" class="capsule-button capsule-button-protection privacy-protected" type="button" aria-pressed="true" aria-label="关闭窗口保护">保护中</button>
-        <button id="floatingExpandButton" class="capsule-button capsule-button-expand" type="button" aria-label="展开工作台">展开 <span aria-hidden="true">⌄</span></button>
-        <button id="floatingHideButton" class="capsule-button capsule-button-hide" type="button" aria-label="隐藏 Meeting-Monster">■</button>
-    </div>
-</div>
+<body>
 <main class="app-shell" data-active-panel="interview">
     <header class="app-header">
         <div class="brand-block">
@@ -36,9 +27,6 @@
             </div>
         </div>
         <div class="header-actions">
-            <div class="privacy-controls" aria-live="polite">
-                <span id="privacyStatusBadge" class="privacy-status hidden"></span>
-            </div>
             <div id="recordingStatus" class="status-pill status-ready" aria-live="polite">
                 <span class="status-dot" aria-hidden="true"></span>
                 <span id="recordingStatusText">准备就绪</span>
@@ -124,8 +112,6 @@
     </div>
 </main>
 
-<script src="floating_mode.js?v=floating-capsule-20260716"></script>
-<script src="privacy_mode.js?v=floating-capsule-20260716"></script>
 <script type="module" src="scripts.js"></script>
 </body>
 

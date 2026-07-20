@@ -18,7 +18,6 @@ test('preload exports one fixed nested Meeting Monster API', () => {
     assert.match(source, /contextBridge\.exposeInMainWorld\(\s*(['"])meetingMonster\1,\s*meetingMonster\s*\)/);
     assert.match(source, /window:\s*\{/);
     assert.match(source, /privacy:\s*\{/);
-    assert.match(source, /settings:\s*\{/);
     assert.match(source, /models:\s*\{/);
     assert.match(source, /chat:\s*\{/);
     assert.match(source, /asr:\s*\{/);
@@ -36,7 +35,7 @@ test('shared contracts reserve typed IPC channel families for later desktop work
     const source = read('desktop', 'src', 'shared', 'contracts.ts');
 
     assert.match(source, /export const IPC_CHANNELS/);
-    for (const family of ['window', 'privacy', 'settings', 'models', 'chat', 'asr']) {
+    for (const family of ['window', 'privacy', 'models', 'chat', 'asr']) {
         assert.match(source, new RegExp(`${family}:`));
     }
     assert.match(source, /export type IpcChannel/);

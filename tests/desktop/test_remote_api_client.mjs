@@ -31,6 +31,35 @@ const publicProfile = {
     temperature: 0.2, active: true,
 };
 
+const selectableProfile = {
+    id: 'demo', label: 'Demo', protocol: 'openai', model: 'demo-model',
+    api_key_required: true, has_api_key: true, max_tokens: 2048, temperature: 0.2, active: true,
+};
+
+test('model selection uses the public backend catalog and sends only a profile id for chat', async () => {
+    const {RemoteApiClient} = await loadClientModule();
+    const calls = [];
+    const client = new RemoteApiClient({
+        baseUrl: 'http://127.0.0.1:9000',
+        fetch: async (url, options = {}) => {
+            calls.push({url: String(url), options});
+            if (String(url).endsWith('/api/model-options/')) {
+                return new Response(JSON.stringify({active_profile: 'demo', profiles: [selectableProfile]}), {status: 200});
+            }
+            return sseResponse(['event: done\ndata: {}\n\n']);
+        },
+    });
+
+    assert.deepEqual(await client.listSelectableModels(), {active_profile: 'demo', profiles: [selectableProfile]});
+    for await (const _event of client.streamChat({
+        requestId: 'request-1', content: 'Question',
+        modelSelection: {profile_id: 'demo'},
+    })) {}
+
+    assert.equal(header(calls[0].options.headers, 'Authorization'), null);
+    assert.equal(calls[1].options.body, JSON.stringify({content: 'Question', profile_id: 'demo'}));
+});
+
 const modelInput = {
     id: 'demo', label: 'Demo', protocol: 'openai', base_url: 'https://provider.example.com/v1',
     model: 'demo-model', api_key: 'provider-secret', api_key_required: true, max_tokens: 2048, temperature: 0.2,

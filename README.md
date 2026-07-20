@@ -53,7 +53,7 @@ Copy-Item .env.example .env
 
 ## 文本模型配置
 
-非敏感配置位于 [`server/config/default_model_profiles.json`](server/config/default_model_profiles.json)，密钥位于本机 `.env`。Web client has no model settings UI；桌面端通过受保护的 model-management API 管理远程模型配置。Desktop settings use the protected model-management API. The active provider key belongs in `.env` under the configured `api_key_env` name.
+非敏感配置位于 [`server/config/default_model_profiles.json`](server/config/default_model_profiles.json)，密钥位于本机 `.env`。Web client has no model settings UI；Electron 只读取后端脱敏模型列表并选择 `profile_id`，不保存 Python 服务地址、管理员令牌或模型配置。模型地址、模型名称和供应商密钥始终由 Python 后端管理。
 
 ```json
 {
@@ -77,6 +77,8 @@ Copy-Item .env.example .env
 
 1. 修改 `server/config/default_model_profiles.json` 的 `active_profile`。
 2. 在 `.env` 中设置 `LLM_ACTIVE_PROFILE=openrouter` 覆盖 JSON 默认值。
+
+Electron 浮层还可以从 `/api/model-options/` 选择一个 `profile_id` 用于当前请求；这种选择不会修改后端 `active_profile` 或模型配置文件。
 
 然后在 `.env` 填写该配置的 `api_key_env` 对应变量并重启服务。系统不会因为检测到其他 API Key 而自动切换服务商，也不会失败后自动消费其他服务商额度。
 
@@ -135,6 +137,8 @@ http://127.0.0.1:9000/
 | `/` | 前端网页和静态资源 |
 | `/api/chat/` | SSE 流式文本回答 |
 | `/api/models/` | 不含密钥和地址的模型配置摘要 |
+| `/api/model-options/` | Electron 可选择的脱敏模型列表 |
+| `/api/model-test/` | 使用后端 profile 测试模型连接 |
 | `/api/prompt/` | 系统提示词 |
 | `/ws/asr` | 本地实时语音识别 WebSocket |
 
@@ -156,7 +160,8 @@ http://127.0.0.1:9000/
 浏览器麦克风 -> AudioWorklet PCM -> /ws/asr
   -> 本地 sherpa-onnx Streaming Paraformer -> 左侧问题列表
 
-选中问题 -> /api/chat/ -> 服务端活动模型配置
+选中问题 -> /api/model-options/ 选择 profile_id -> /api/chat/
+  -> 服务端 profile 配置
   -> OpenAI Compatible 或 Anthropic Messages -> SSE -> 右侧回答区
 ```
 
@@ -172,7 +177,7 @@ http://127.0.0.1:9000/
 ## 测试
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py" -v
+.\.venv\Scripts\python.exe -m unittest discover -s tests/server -p "test_*.py" -v
 node --test tests/desktop/*.mjs
 node --check web/scripts.js
 ```
@@ -197,7 +202,7 @@ web/scripts.js                    同源 WebSocket、问题状态和 LLM 交互
 start.bat                         Windows 一键启动入口
 ```
 
-本地化的是 Python 服务中的实时语音识别；配置的文本模型仍可能是远程服务。Electron 桌面端通过 `/ws/asr` 使用该 Python 服务，发布版由 GitHub Release 提供。
+本地化的是 Python 服务中的实时语音识别；配置的文本模型仍可能是远程服务。Electron 桌面端默认连接本机 `http://127.0.0.1:9000/`，聊天、模型选择和 `/ws/asr` 都复用该地址，语音 WebSocket 路径由客户端自动派生，不需要单独配置语音接口。
 
 ## Windows 桌面隐私模式
 

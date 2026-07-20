@@ -13,29 +13,27 @@ async function loadModelSettingsController() {
     return import(`data:text/javascript,${encodeURIComponent(source)}`);
 }
 
-test('model settings renderer exposes fixed controls and keeps connection secrets transient', () => {
+test('model settings renderer exposes backend-owned model selection controls only', () => {
     const html = fs.readFileSync(overlayHtmlPath, 'utf8');
     const source = fs.existsSync(controllerPath) ? fs.readFileSync(controllerPath, 'utf8') : '';
     const requiredIds = [
         'overlaySettingsButton', 'overlayActiveModel', 'overlaySettingsDrawer', 'overlaySettingsClose',
-        'serverBaseUrl', 'serverAdminToken', 'serverSaveButton', 'serverTestButton', 'serverClearButton', 'serverStatus',
-        'modelList', 'modelForm', 'modelProfileId', 'modelLabel', 'modelProtocol', 'modelBaseUrl', 'modelName',
-        'modelApiKey', 'modelApiKeyRequired', 'modelMaxTokens', 'modelTemperature', 'modelSaveButton',
-        'modelTestButton', 'modelCancelButton', 'modelStatus',
+        'modelList', 'modelForm', 'modelProtocol', 'modelApiKey', 'modelMaxTokens', 'modelTemperature',
+        'modelTestButton', 'modelStatus',
     ];
 
     for (const id of requiredIds) assert.match(html, new RegExp(`id="${id}"`));
+    for (const id of ['serverBaseUrl', 'serverAdminToken', 'modelBaseUrl', 'modelName', 'modelSaveButton', 'modelCancelButton']) {
+        assert.doesNotMatch(html, new RegExp(`id="${id}"`));
+    }
     assert.match(source, /export class ModelSettingsController/);
     assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|document\.cookie/);
     assert.doesNotMatch(source, /\bfetch\s*\(|\bWebSocket\b/);
-    assert.match(source, /meetingMonster\.settings\.testConnection/);
-    assert.match(source, /meetingMonster\.models\.list/);
-    assert.match(source, /meetingMonster\.models\.create/);
-    assert.match(source, /meetingMonster\.models\.update/);
-    assert.match(source, /meetingMonster\.models\.activate/);
-    assert.match(source, /meetingMonster\.models\.delete/);
-    assert.match(source, /meetingMonster\.models\.test/);
-    assert.match(source, /finally\s*\{[\s\S]*apiKeyInput\.value\s*=\s*['"][^'"]*['"]/);
+    assert.match(source, /this\.api\.models\.list/);
+    assert.match(source, /this\.api\.models\.test/);
+    assert.match(source, /profile_id/);
+    assert.doesNotMatch(source, /meetingMonster\.models\.(create|update|delete|activate)/);
+    assert.match(source, /profile_id/);
 });
 
 function createElement() {
@@ -51,11 +49,10 @@ function createElement() {
     };
 }
 
-test('deleting the active profile refreshes the active-model callback', async () => {
+test('selecting a backend profile refreshes the active-model callback', async () => {
     const {ModelSettingsController} = await loadModelSettingsController();
-    const deletedProfile = {id: 'old', label: 'Old', active: true};
     const activeProfile = {
-        id: 'new', label: 'Current', protocol: 'openai', base_url: 'https://example.test', model: 'gpt',
+        id: 'new', label: 'Current', protocol: 'openai', model: 'gpt',
         api_key_required: true, max_tokens: 100, temperature: 0.2, active: true,
     };
     const updates = [];
@@ -66,16 +63,13 @@ test('deleting the active profile refreshes the active-model callback', async ()
     try {
         const controller = new ModelSettingsController({
             api: {
-                models: {
-                    delete: async (id) => assert.equal(id, 'old'),
-                    list: async () => ({active_profile: 'new', profiles: [activeProfile]}),
-                },
+                models: {list: async () => ({active_profile: 'new', profiles: [activeProfile]})},
             },
             elements: {modelList: createElement(), modelStatus: createElement()},
             onActiveModelChanged: (profile) => updates.push(profile),
         });
 
-        await controller.deleteProfile(deletedProfile);
+        await controller.selectProfile(activeProfile);
         assert.deepEqual(updates, [activeProfile]);
     } finally {
         globalThis.window = originalWindow;

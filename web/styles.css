@@ -1,3 +1,6 @@
+Exit code: 0
+Wall time: 0.3 seconds
+Output:
 :root {
     --page-bg: #f4f6fa;
     --surface: #ffffff;
@@ -18,14 +21,13 @@
     --radius-sm: 10px;
     --shadow: 0 20px 55px rgba(15, 23, 42, 0.09);
 }
-
 * {
     box-sizing: border-box;
 }
 
 html {
     min-width: 320px;
-    background: transparent;
+    background: var(--page-bg);
 }
 
 body {
@@ -33,7 +35,10 @@ body {
     min-height: 100vh;
     padding: 16px;
     color: var(--text);
-    background: transparent;
+    background:
+        radial-gradient(circle at 8% 0%, rgba(79, 70, 229, 0.08), transparent 28%),
+        radial-gradient(circle at 92% 8%, rgba(14, 165, 233, 0.07), transparent 25%),
+        var(--page-bg);
     font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     -webkit-font-smoothing: antialiased;
 }
@@ -77,18 +82,6 @@ p {
     gap: 24px;
     padding: 16px 22px;
     border-bottom: 1px solid var(--border);
-    -webkit-app-region: drag;
-    cursor: move;
-}
-
-.app-header button,
-.app-header a,
-.app-header input,
-.app-header textarea,
-.app-header select,
-.app-header [role="button"] {
-    -webkit-app-region: no-drag;
-    cursor: pointer;
 }
 
 .brand-block,
@@ -130,40 +123,6 @@ h1 {
 
 .header-actions {
     gap: 9px;
-}
-
-.privacy-controls {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-}
-
-.privacy-status {
-    display: inline-flex;
-    min-height: 27px;
-    align-items: center;
-    padding: 5px 9px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface-soft);
-    color: var(--text-muted);
-    font-size: 0.68rem;
-    font-weight: 760;
-    white-space: nowrap;
-}
-
-.privacy-protected {
-    border-color: #bbf7d0;
-    background: #f0fdf4;
-    color: #15803d;
-}
-
-.privacy-unsupported,
-.privacy-disabled,
-.privacy-failed {
-    border-color: #fed7aa;
-    background: #fff7ed;
-    color: #b45309;
 }
 
 .status-pill {
@@ -904,189 +863,5 @@ h1 {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
-    }
-}
-
-/* Electron floating capsule surface */
-body.floating-capsule {
-    min-width: 360px;
-    overflow: hidden;
-    padding: 0;
-}
-
-body.floating-capsule .app-shell {
-    width: 100%;
-    height: 56px;
-    min-height: 56px;
-    margin: 0;
-    overflow: visible;
-    border: 0;
-    border-radius: 30px;
-    background: transparent;
-    box-shadow: none;
-}
-
-body.floating-capsule .app-header,
-body.floating-capsule .workspace-grid {
-    display: none;
-}
-
-body.floating-expanded {
-    min-width: 720px;
-    overflow: hidden;
-    padding: 8px;
-}
-
-body.floating-expanded .app-shell {
-    width: 100%;
-    height: calc(100vh - 16px);
-    min-height: 0;
-    margin: 0;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 28px;
-    background: rgba(15, 18, 26, 0.78);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
-    backdrop-filter: blur(24px) saturate(130%);
-}
-
-.capsule-shell {
-    display: none;
-    min-height: 56px;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 6px 8px 6px 10px;
-    color: #f8fafc;
-    border: 1px solid rgba(255, 255, 255, 0.19);
-    border-radius: 30px;
-    background: linear-gradient(110deg, rgba(33, 38, 49, 0.96), rgba(18, 21, 29, 0.93));
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.1) inset;
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-app-region: drag;
-}
-
-body.floating-capsule .capsule-shell,
-body.floating-expanded .capsule-shell {
-    display: flex;
-}
-
-body.floating-expanded .capsule-shell {
-    flex: 0 0 56px;
-    margin: 6px;
-}
-
-.capsule-drag-region {
-    display: flex;
-    min-width: 0;
-    align-items: center;
-    gap: 7px;
-    overflow: hidden;
-}
-
-.capsule-logo {
-    display: block;
-    width: 30px;
-    height: 30px;
-    flex: 0 0 auto;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    object-fit: cover;
-    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.28);
-}
-
-.capsule-live-dot {
-    width: 6px;
-    height: 6px;
-    flex: 0 0 auto;
-    border-radius: 50%;
-    background: #86efac;
-    box-shadow: 0 0 0 4px rgba(134, 239, 172, 0.12);
-}
-
-.capsule-live-label {
-    color: #a7f3d0;
-    font-size: 0.62rem;
-    white-space: nowrap;
-}
-
-.capsule-controls {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: 5px;
-    -webkit-app-region: no-drag;
-}
-
-.capsule-button {
-    display: inline-flex;
-    min-width: 30px;
-    min-height: 30px;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    padding: 5px 8px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 999px;
-    cursor: pointer;
-    color: #f8fafc;
-    background: rgba(55, 62, 77, 0.7);
-    font-size: 0.68rem;
-    font-weight: 760;
-    transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
-    -webkit-app-region: no-drag;
-}
-
-.capsule-button:hover {
-    border-color: rgba(255, 255, 255, 0.3);
-    background: rgba(75, 85, 105, 0.88);
-    transform: translateY(-1px);
-}
-
-.capsule-button:focus-visible {
-    outline: 3px solid rgba(147, 197, 253, 0.72);
-    outline-offset: 2px;
-}
-
-.capsule-button-protection {
-    border-color: rgba(134, 239, 172, 0.28);
-    background: rgba(22, 101, 52, 0.34);
-    color: #bbf7d0;
-}
-
-.capsule-button-protection.privacy-disabled,
-.capsule-button-protection.privacy-failed,
-.capsule-button-protection.privacy-unsupported {
-    border-color: rgba(253, 186, 116, 0.32);
-    background: rgba(124, 45, 18, 0.3);
-    color: #fed7aa;
-}
-
-.capsule-button-hide {
-    min-width: 30px;
-    padding: 0;
-    border-color: transparent;
-    background: rgba(71, 78, 94, 0.9);
-    font-size: 0.58rem;
-}
-
-body.floating-expanded .app-header {
-    margin: 0 10px 10px;
-    border: 1px solid rgba(226, 232, 240, 0.84);
-    border-radius: 19px;
-    background: rgba(255, 255, 255, 0.94);
-}
-
-body.floating-expanded .workspace-grid {
-    margin: 0 10px 10px;
-    overflow: hidden;
-    border: 1px solid rgba(226, 232, 240, 0.84);
-    border-radius: 19px;
-    background: rgba(255, 255, 255, 0.94);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .capsule-button {
-        transition: none;
     }
 }

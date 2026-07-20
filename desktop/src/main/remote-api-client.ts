@@ -3,13 +3,21 @@ export type ConnectionTestStatus = 'connected' | 'unauthorized' | 'unreachable';
 
 export interface RemoteApiClientOptions {
     baseUrl: string;
-    adminToken: string;
+    adminToken?: string;
     fetch: RemoteFetch;
+}
+
+export interface ModelSelectionInput {
+    profile_id: string;
+    api_key?: string;
+    max_tokens?: number;
+    temperature?: number | null;
 }
 
 export interface ChatRequest {
     requestId: string;
     content: string;
+    modelSelection?: ModelSelectionInput;
     signal?: AbortSignal;
 }
 
@@ -27,6 +35,18 @@ export interface PublicModelProfile {
     label: string;
     protocol: 'openai' | 'anthropic';
     base_url: string;
+    model: string;
+    api_key_required: boolean;
+    has_api_key: boolean;
+    max_tokens: number;
+    temperature: number | null;
+    active: boolean;
+}
+
+export interface SelectableModelProfile {
+    id: string;
+    label: string;
+    protocol: 'openai' | 'anthropic';
     model: string;
     api_key_required: boolean;
     has_api_key: boolean;
@@ -56,7 +76,16 @@ export class RemoteApiClient {
         this.baseUrl.search = '';
         this.baseUrl.hash = '';
         if (!this.baseUrl.pathname.endsWith('/')) this.baseUrl.pathname += '/';
-        this.secrets = new Set([options.adminToken]);
+        this.secrets = new Set(options.adminToken ? [options.adminToken] : []);
+    }
+
+    public listSelectableModels(): Promise<{active_profile: string; profiles: SelectableModelProfile[]}> {
+        return this.requestJson('model-options/', {method: 'GET'}, false, undefined, parseSelectableModelList);
+    }
+
+    public testSelectedModel(selection: ModelSelectionInput): Promise<{ok: boolean; latency_ms: number; model: string}> {
+        const validated = validateModelSelectionInput(selection);
+        return this.requestJson('model-test/', this.jsonRequest('POST', validated), false, validated, parseModelTest);
     }
 
     public listModels(): Promise<{active_profile: string; profiles: PublicModelProfile[]}> {
@@ -112,10 +141,14 @@ export class RemoteApiClient {
 
     public async *streamChat(request: ChatRequest, sink?: ChatEventSink): AsyncGenerator<ChatStreamEvent> {
         if (!request.requestId.trim() || !request.content.trim() || request.signal?.aborted) return;
+        const body = {
+            content: request.content.trim(),
+            ...(request.modelSelection ? validateModelSelectionInput(request.modelSelection) : {}),
+        };
         const response = await this.fetchResponse('chat/', {
-            ...this.jsonRequest('POST', {content: request.content.trim()}),
+            ...this.jsonRequest('POST', body),
             signal: request.signal,
-        }, false, {content: request.content.trim()});
+        }, false, body);
         if (!response.body) throw new RemoteApiError('Remote chat stream is unavailable', response.status);
         for await (const parsed of parseSseChunks(readResponseBody(response.body), request.signal)) {
             if (request.signal?.aborted) return;
@@ -328,11 +361,41 @@ export function validateModelProfileInput(value: unknown): ModelProfileInput {
     return Object.fromEntries(Object.entries(input).filter(([key]) => MODEL_INPUT_FIELDS.has(key)));
 }
 
+export function validateModelSelectionInput(value: unknown): ModelSelectionInput {
+    const input = requireObject(value, 'Model selection input');
+    const allowed = new Set(['profile_id', 'api_key', 'max_tokens', 'temperature']);
+    for (const key of Object.keys(input)) {
+        if (!allowed.has(key)) throw new TypeError(`Model selection field is unsupported: ${key}`);
+    }
+    if (typeof input.profile_id !== 'string' || !input.profile_id.trim()) {
+        throw new TypeError('Model selection field is invalid: profile_id');
+    }
+    if ('api_key' in input && typeof input.api_key !== 'string') {
+        throw new TypeError('Model selection field is invalid: api_key');
+    }
+    if ('max_tokens' in input && (!Number.isInteger(input.max_tokens) || (input.max_tokens as number) <= 0)) {
+        throw new TypeError('Model selection field is invalid: max_tokens');
+    }
+    if ('temperature' in input && input.temperature !== null
+        && (typeof input.temperature !== 'number' || !Number.isFinite(input.temperature))) {
+        throw new TypeError('Model selection field is invalid: temperature');
+    }
+    return Object.fromEntries(Object.entries(input).filter(([, item]) => item !== undefined)) as unknown as ModelSelectionInput;
+}
+
 function parseModelList(value: unknown): {active_profile: string; profiles: PublicModelProfile[]} {
     const payload = requireObject(value, 'Model list response');
     if (typeof payload.active_profile !== 'string') throw new TypeError('Model list response is invalid');
     if (!Array.isArray(payload.profiles)) throw new TypeError('Model list response is invalid');
     return {active_profile: payload.active_profile, profiles: payload.profiles.map(parsePublicModelProfile)};
+}
+
+function parseSelectableModelList(value: unknown): {active_profile: string; profiles: SelectableModelProfile[]} {
+    const payload = requireObject(value, 'Model options response');
+    if (typeof payload.active_profile !== 'string' || !Array.isArray(payload.profiles)) {
+        throw new TypeError('Model options response is invalid');
+    }
+    return {active_profile: payload.active_profile, profiles: payload.profiles.map(parseSelectableModelProfile)};
 }
 
 function parseActivation(value: unknown): {active_profile: string; profile: PublicModelProfile} {
@@ -368,6 +431,29 @@ function parsePublicModelProfile(value: unknown): PublicModelProfile {
         id: payload.id, label: payload.label, protocol: payload.protocol, base_url: payload.base_url, model: payload.model,
         api_key_required: payload.api_key_required, has_api_key: payload.has_api_key, max_tokens: payload.max_tokens as number,
         temperature: payload.temperature as number | null, active: payload.active,
+    };
+}
+
+function parseSelectableModelProfile(value: unknown): SelectableModelProfile {
+    const payload = requireObject(value, 'Selectable model profile response');
+    if (
+        typeof payload.id !== 'string' || typeof payload.label !== 'string'
+        || (payload.protocol !== 'openai' && payload.protocol !== 'anthropic')
+        || typeof payload.model !== 'string' || typeof payload.api_key_required !== 'boolean'
+        || typeof payload.has_api_key !== 'boolean' || !Number.isInteger(payload.max_tokens)
+        || (payload.temperature !== null && (typeof payload.temperature !== 'number' || !Number.isFinite(payload.temperature)))
+        || typeof payload.active !== 'boolean'
+    ) throw new TypeError('Selectable model profile response is invalid');
+    return {
+        id: payload.id,
+        label: payload.label,
+        protocol: payload.protocol,
+        model: payload.model,
+        api_key_required: payload.api_key_required,
+        has_api_key: payload.has_api_key,
+        max_tokens: payload.max_tokens as number,
+        temperature: payload.temperature as number | null,
+        active: payload.active,
     };
 }
 

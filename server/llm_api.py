@@ -6,11 +6,12 @@ import asyncio
 import json
 import os
 import threading
+from dataclasses import replace
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Mapping
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
@@ -33,6 +34,18 @@ class UserMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     content: str = Field(min_length=1)
+    profile_id: str | None = Field(default=None, min_length=1)
+    max_tokens: int | None = Field(default=None, gt=0)
+    temperature: float | None = Field(default=None, ge=0, le=2)
+
+
+class ModelTestRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    profile_id: str = Field(min_length=1)
+    api_key: str | None = None
+    max_tokens: int | None = Field(default=None, gt=0)
+    temperature: float | None = Field(default=None, ge=0, le=2)
 
 
 class PromptMessage(BaseModel):
@@ -81,11 +94,34 @@ def create_app(
         allow_headers=["*"],
     )
 
-    def resolve_profile() -> ResolvedModelProfile:
+    def resolve_profile(
+        profile_id: str | None = None,
+        api_key: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> ResolvedModelProfile:
         try:
-            return profile_resolver()
+            profile = (
+                runtime_store.resolve_active_profile(environment, profile_id, api_key_override=api_key)
+                if profile_id
+                else profile_resolver()
+            )
         except ModelConfigurationError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
+        if max_tokens is not None or temperature is not None:
+            profile = replace(
+                profile,
+                **{
+                    **({"max_tokens": max_tokens} if max_tokens is not None else {}),
+                    **({"temperature": temperature} if temperature is not None else {}),
+                },
+            )
+        return profile
+
+    def require_local_client(request: Request) -> None:
+        client_host = request.client.host if request.client else ""
+        if client_host not in {"127.0.0.1", "::1", "localhost", "testclient"}:
+            raise HTTPException(status_code=403, detail="Local model selection is required")
 
     @app.get("/prompt/")
     async def get_prompt():
@@ -107,7 +143,12 @@ def create_app(
 
     @app.post("/chat/")
     async def chat(user_message: UserMessage):
-        profile = resolve_profile()
+        profile = resolve_profile(
+            user_message.profile_id,
+            None,
+            user_message.max_tokens,
+            user_message.temperature,
+        )
         try:
             provider = provider_factory(profile)
         except Exception as exc:
@@ -179,6 +220,44 @@ def create_app(
     @app.get("/model-config/")
     async def get_model_config():
         return resolve_profile().public_summary()
+
+    @app.get("/model-options/")
+    async def get_model_options(request: Request):
+        require_local_client(request)
+        try:
+            profiles = runtime_store.list_profiles()
+        except ModelConfigurationError as exc:
+            raise HTTPException(status_code=503, detail="Model options are unavailable") from exc
+        active_profile = next(profile.id for profile in profiles if profile.active)
+        return {
+            "active_profile": active_profile,
+            "profiles": [profile.model_dump(exclude={"base_url"}) for profile in profiles],
+        }
+
+    @app.post("/model-test/")
+    async def test_model(http_request: Request, request: ModelTestRequest):
+        require_local_client(http_request)
+        profile = resolve_profile(request.profile_id, request.api_key, request.max_tokens, request.temperature)
+        short_profile = replace(profile, max_tokens=min(profile.max_tokens, 8))
+        started = asyncio.get_running_loop().time()
+        received_text = False
+        try:
+            stream = provider_factory(short_profile).stream_text(
+                [{"role": "user", "content": "Reply with OK."}]
+            )
+            for text in stream:
+                if text:
+                    received_text = True
+                    break
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail="Model connectivity test failed") from exc
+        if not received_text:
+            raise HTTPException(status_code=422, detail="Model connectivity test failed")
+        return {
+            "ok": True,
+            "latency_ms": int((asyncio.get_running_loop().time() - started) * 1000),
+            "model": short_profile.model,
+        }
 
     @app.get("/health/")
     async def health_check():

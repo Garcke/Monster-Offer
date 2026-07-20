@@ -31,7 +31,8 @@ test('Electron overlay uses only the preload API for remote services', () => {
     assert.match(html, /id="overlaySettingsButton"/);
     assert.match(html, /id="overlaySettingsDrawer"/);
     assert.match(html, /id="overlayActiveModel"/);
-    assert.match(html, /音频将发送到已配置的 Python 服务/);
+    assert.match(html, /模型地址、名称和服务密钥由 Python 后端配置/);
+    assert.doesNotMatch(html, /serverBaseUrl|serverAdminToken|modelBaseUrl|modelName/);
     assert.doesNotMatch(html, /workspace-grid|privacyRedactionShield|privacyToggleButton/);
     assert.doesNotMatch(js, /\bfetch\s*\(|\bWebSocket\b|\/ws\/asr|API_BASE_URL/);
     assert.doesNotMatch(js, /marked|answer\.innerHTML\s*=\s*remote|globalThis\.marked/);

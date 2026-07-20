@@ -98,6 +98,48 @@ class LLMAPITests(unittest.TestCase):
         self.assertNotIn("secret-endpoint", rendered)
         self.assertNotIn("api_key_env", rendered)
 
+    def test_model_options_are_safe_and_chat_profile_selection_does_not_change_active_profile(self):
+        from server.llm_api import create_app
+        from server.settings.profile_store import ModelProfileInput, ProfileStore, SecretCipher
+
+        with tempfile.TemporaryDirectory() as directory:
+            store = ProfileStore(Path(directory) / "profiles.json", SecretCipher(Fernet.generate_key()))
+            store.create_profile(
+                ModelProfileInput(
+                    id="alternate",
+                    label="Alternate",
+                    protocol="openai",
+                    base_url="https://alternate.example/v1",
+                    model="alternate-model",
+                    api_key_required=False,
+                    max_tokens=32,
+                    temperature=0.2,
+                )
+            )
+            provider = FakeProvider(["answer"])
+            seen_profiles = []
+
+            def provider_factory(profile):
+                seen_profiles.append(profile)
+                return provider
+
+            with TestClient(create_app(profile_store=store, provider_factory=provider_factory)) as client:
+                options = client.get("/model-options/")
+                test_result = client.post("/model-test/", json={"profile_id": "alternate"})
+                response = client.post("/chat/", json={"content": "Question", "profile_id": "alternate"})
+                active = client.get("/model-config/")
+
+        self.assertEqual(options.status_code, 200)
+        self.assertEqual(test_result.status_code, 200)
+        self.assertEqual(test_result.json()["model"], "alternate-model")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(seen_profiles[-1].profile_id, "alternate")
+        self.assertEqual(active.json()["active_profile"], "generic_openai")
+        self.assertEqual(options.json()["active_profile"], "generic_openai")
+        self.assertTrue(all("base_url" not in profile for profile in options.json()["profiles"]))
+        self.assertTrue(all("api_key" not in profile for profile in options.json()["profiles"]))
+        self.assertTrue(all("api_key_env" not in profile for profile in options.json()["profiles"]))
+
     def test_provider_failure_emits_error_and_done_events_without_hanging(self):
         provider = FakeProvider(error=RuntimeError("provider unavailable"))
         with self.create_client(provider) as client:

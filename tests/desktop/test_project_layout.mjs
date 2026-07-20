@@ -48,9 +48,20 @@ test('documentation explains model setup and development transport boundaries', 
     assert.match(rootReadme, /active_profile/);
     assert.match(rootReadme, /LLM_ACTIVE_PROFILE/);
     assert.match(rootReadme, /api_key_env/);
-    assert.match(rootReadme, /active provider key.*\.env/i);
+    assert.match(rootReadme, /供应商密钥.*Python 后端/);
     assert.match(rootReadme, /Web client.*no model settings UI/i);
-    assert.match(rootReadme, /Desktop settings.*protected model-management API/i);
-    assert.match(desktopReadme, /localhost.*127\.0\.0\.1.*HTTP\/WS/i);
+    assert.match(rootReadme, /Electron.*脱敏模型列表.*profile_id/);
+    assert.match(rootReadme, /127\.0\.0\.1:9000.*\/ws\/asr/);
+    assert.match(desktopReadme, /127\.0\.0\.1:9000/);
+    assert.match(desktopReadme, /does not create, edit, or delete/i);
     assert.match(desktopReadme, /non-local.*HTTPS\/WSS/i);
+});
+
+test('Electron uses the fixed local Python service and does not expose connection settings', () => {
+    const mainSource = fs.readFileSync(path.join(desktopRoot, 'src', 'main', 'main.ts'), 'utf8');
+    const preloadSource = fs.readFileSync(path.join(desktopRoot, 'src', 'preload', 'index.ts'), 'utf8');
+
+    assert.match(mainSource, /DEFAULT_BACKEND_URL\s*=\s*['"]http:\/\/127\.0\.0\.1:9000\//);
+    assert.doesNotMatch(mainSource, /DesktopSettingsStore|settingsStore|APP_ADMIN_TOKEN/);
+    assert.doesNotMatch(preloadSource, /IPC_CHANNELS\.settings|saveConnection|clearConnection|testConnection/);
 });

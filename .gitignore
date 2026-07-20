@@ -12,6 +12,7 @@ cache/*.pcm
 models/
 desktop/node_modules/
 desktop/dist/
+desktop/release/
 desktop/debug.log
 docs/
 .worktrees/

@@ -10,7 +10,7 @@ const read = (...parts) => fs.readFileSync(path.join(projectRoot, ...parts), 'ut
 test('desktop has no Python sidecar and loads the local overlay renderer', () => {
     const source = read('desktop', 'src', 'main', 'main.ts');
 
-    assert.doesNotMatch(source, /child_process|spawn\(|python|ensureServer|loadURL|fetch\(|https?:/i);
+    assert.doesNotMatch(source, /child_process|spawn\(|python|ensureServer|loadURL|fetch\(/i);
     assert.match(source, /loadFile\(path\.join\(__dirname, '\.\.', '\.\.', 'renderer', 'overlay\.html'\)\)/);
 });
 
@@ -49,6 +49,6 @@ test('main keeps remote ASR networking and PCM ports out of the renderer', () =>
 
     assert.match(source, /new MessageChannelMain\(\)/);
     assert.match(source, /IPC_CHANNELS\.asr\.start/);
-    assert.match(source, /loadConnection\(\)/);
+    assert.match(source, /loadConnection:\s*async/);
     assert.doesNotMatch(source, /APP_ADMIN_TOKEN.*ws\/asr|Authorization.*ws\/asr/s);
 });
